@@ -16,7 +16,7 @@
 | 📈 Marketing | ✅ v1.0 | `/marketing` | CPL/CAC/ROI/conversões |
 | 📊 BI & Análise | ✅ v1.0 | `/bi` | Funil + métricas + 14d chart |
 | 🎓 Academia | ✅ v0.9 | `/academia` | 6 trilhas de treinamento |
-| 🚀 Deploy Vercel | ⏳ pendente | - | Requer login Vercel |
+| 🚀 Deploy Vercel | ✅ **EM PRODUÇÃO** | https://excalibur-web.vercel.app | 10 rotas deployadas |
 
 ---
 
@@ -43,13 +43,17 @@
 
 ---
 
-## ⚠️ Próximos passos para ir ao ar
+## ✅ DEPLOY REALIZADO — 2026-04-05
 
-1. **Login Vercel** (abrir vercel.com/login no Chrome)
-2. **Criar token** em vercel.com/account/tokens
-3. **Deploy:** `vercel --prod` com VERCEL_TOKEN env var
-4. **GitHub push:** precisa PAT do usuário
-5. **Domínio personalizado**
+- **Production URL:** https://excalibur-web.vercel.app
+- **Team:** contatocardosoeo-sys-projects
+- **Scope:** Full Account, No Expiration
+- **Env vars Vercel:** NEXT_PUBLIC_SUPABASE_URL + NEXT_PUBLIC_SUPABASE_ANON_KEY ✅
+- **Testado:** Dashboard + BI + todos módulos carregando dados reais
+
+## ⚠️ Ainda pendente
+1. **GitHub push:** precisa PAT do usuário
+2. **Domínio personalizado** (opcional)
 
 ---
 
