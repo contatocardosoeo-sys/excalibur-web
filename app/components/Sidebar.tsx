@@ -10,6 +10,7 @@ const navItems = [
   { href: '/agenda', icon: '📅', label: 'Agenda' },
   { href: '/financeiro', icon: '💰', label: 'Financeiro' },
   { href: '/marketing', icon: '📈', label: 'Marketing' },
+  { href: '/bi', icon: '📊', label: 'BI & Análise' },
   { href: '/academia', icon: '🎓', label: 'Academia' },
 ]
 
