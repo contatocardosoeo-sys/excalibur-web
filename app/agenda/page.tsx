@@ -1,343 +1,303 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { supabase } from '../lib/supabase'
 import Sidebar from '../components/Sidebar'
 
+type StatusAg = 'agendado' | 'confirmado' | 'compareceu' | 'cancelado' | 'noshow'
+
 interface Agendamento {
   id: string
+  paciente_id: string | null
   paciente_nome: string
+  telefone: string | null
   data: string
   hora: string
-  procedimento: string
-  status: string
-  observacoes: string
+  duracao_min: number | null
+  procedimento: string | null
+  status: StatusAg
+  observacoes: string | null
   created_at: string
 }
 
-const STATUS_COR: Record<string, string> = {
-  agendado:    'bg-blue-900 text-blue-300',
-  confirmado:  'bg-amber-500 text-gray-950',
-  compareceu:  'bg-green-900 text-green-400',
-  cancelado:   'bg-red-900 text-red-400',
-  'no-show':   'bg-gray-700 text-gray-400',
+interface PacienteLite {
+  id: string
+  nome: string
+  telefone: string | null
+  procedimento: string | null
 }
 
-const PROCEDIMENTOS = ['Implante', 'Protocolo', 'Prótese', 'Estética', 'Outro']
-const STATUS_LISTA  = ['agendado', 'confirmado', 'compareceu', 'cancelado', 'no-show']
-
-function formatarData(iso: string) {
-  const [ano, mes, dia] = iso.split('-')
-  return `${dia}/${mes}/${ano}`
+const STATUS: Record<StatusAg, { label: string; cor: string }> = {
+  agendado: { label: 'Agendado', cor: 'bg-blue-900/40 text-blue-300 border-blue-700/50' },
+  confirmado: { label: 'Confirmado', cor: 'bg-amber-500/20 text-amber-400 border-amber-500/50' },
+  compareceu: { label: 'Compareceu', cor: 'bg-green-900/40 text-green-400 border-green-700/50' },
+  cancelado: { label: 'Cancelado', cor: 'bg-gray-800 text-gray-500 border-gray-700' },
+  noshow: { label: 'No-show', cor: 'bg-red-900/40 text-red-400 border-red-700/50' },
 }
 
-function semanaAtual(): string[] {
-  const hoje = new Date()
-  const diaSemana = hoje.getDay() // 0=dom
-  const inicio = new Date(hoje)
-  inicio.setDate(hoje.getDate() - diaSemana + (diaSemana === 0 ? -6 : 1)) // segunda
-  return Array.from({ length: 7 }, (_, i) => {
-    const d = new Date(inicio)
-    d.setDate(inicio.getDate() + i)
-    return d.toISOString().split('T')[0]
-  })
+const vazio: Partial<Agendamento> = {
+  paciente_nome: '',
+  telefone: '',
+  data: new Date().toISOString().slice(0, 10),
+  hora: '09:00',
+  duracao_min: 60,
+  procedimento: 'Avaliação',
+  status: 'agendado',
+  observacoes: '',
 }
 
-const DIAS_SEMANA = ['Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb', 'Dom']
+function hoje(): string { return new Date().toISOString().slice(0, 10) }
+function amanha(): string { const d = new Date(); d.setDate(d.getDate() + 1); return d.toISOString().slice(0, 10) }
+function weekBounds(): [string, string] {
+  const d = new Date(); const dia = d.getDay()
+  const s = new Date(d); s.setDate(d.getDate() - dia)
+  const e = new Date(s); e.setDate(s.getDate() + 6)
+  return [s.toISOString().slice(0, 10), e.toISOString().slice(0, 10)]
+}
+function formatPhone(p: string | null): string {
+  if (!p) return ''
+  const d = p.replace(/\D/g, '')
+  if (d.length === 11) return `(${d.slice(0, 2)}) ${d.slice(2, 7)}-${d.slice(7)}`
+  if (d.length === 10) return `(${d.slice(0, 2)}) ${d.slice(2, 6)}-${d.slice(6)}`
+  return p
+}
 
 export default function AgendaPage() {
-  const [agendamentos, setAgendamentos]   = useState<Agendamento[]>([])
-  const [diaSelecionado, setDiaSelecionado] = useState(new Date().toISOString().split('T')[0])
-  const [modalAberto, setModalAberto]     = useState(false)
-  const [salvando, setSalvando]           = useState(false)
-  const [filtroStatus, setFiltroStatus]   = useState('todos')
-
-  const [form, setForm] = useState({
-    paciente_nome: '',
-    data: new Date().toISOString().split('T')[0],
-    hora: '09:00',
-    procedimento: 'Implante',
-    status: 'agendado',
-    observacoes: '',
-  })
+  const [ags, setAgs] = useState<Agendamento[]>([])
+  const [pacientes, setPacientes] = useState<PacienteLite[]>([])
+  const [loading, setLoading] = useState(true)
+  const [erro, setErro] = useState<string | null>(null)
+  const [filtro, setFiltro] = useState<'hoje' | 'semana' | 'todos'>('hoje')
+  const [filtroStatus, setFiltroStatus] = useState<StatusAg | 'todos'>('todos')
+  const [modalAberto, setModalAberto] = useState(false)
+  const [editando, setEditando] = useState<Partial<Agendamento>>(vazio)
+  const [salvando, setSalvando] = useState(false)
+  const [buscaPac, setBuscaPac] = useState('')
 
   async function carregar() {
-    const { data } = await supabase
-      .from('agendamentos')
-      .select('*')
-      .order('data', { ascending: true })
-      .order('hora', { ascending: true })
-    if (data) setAgendamentos(data)
+    setLoading(true); setErro(null)
+    const { data, error } = await supabase.from('agendamentos').select('*').order('data').order('hora')
+    if (error) {
+      setErro(error.code === '42P01' ? 'Tabela "agendamentos" não existe. Rode supabase/migrations/002_agenda_financeiro.sql.' : error.message)
+      setAgs([])
+    } else setAgs((data ?? []) as Agendamento[])
+    const { data: pacs } = await supabase.from('pacientes').select('id,nome,telefone,procedimento').eq('status', 'ativo').order('nome')
+    setPacientes((pacs ?? []) as PacienteLite[])
+    setLoading(false)
   }
 
   useEffect(() => { carregar() }, [])
 
+  function abrirNovo() { setEditando({ ...vazio, data: hoje() }); setBuscaPac(''); setModalAberto(true) }
+  function abrirEdit(a: Agendamento) { setEditando({ ...a }); setBuscaPac(a.paciente_nome); setModalAberto(true) }
+
   async function salvar() {
-    if (!form.paciente_nome || !form.data || !form.hora) return
+    if (!editando.paciente_nome?.trim() || !editando.data || !editando.hora) return
     setSalvando(true)
-    await supabase.from('agendamentos').insert([form])
-    setForm({
-      paciente_nome: '',
-      data: new Date().toISOString().split('T')[0],
-      hora: '09:00',
-      procedimento: 'Implante',
-      status: 'agendado',
-      observacoes: '',
-    })
-    setModalAberto(false)
+    const payload = {
+      paciente_id: editando.paciente_id || null,
+      paciente_nome: editando.paciente_nome.trim(),
+      telefone: editando.telefone?.trim() || null,
+      data: editando.data,
+      hora: editando.hora,
+      duracao_min: editando.duracao_min || 60,
+      procedimento: editando.procedimento || null,
+      status: (editando.status || 'agendado') as StatusAg,
+      observacoes: editando.observacoes?.trim() || null,
+    }
+    const { error } = editando.id
+      ? await supabase.from('agendamentos').update(payload).eq('id', editando.id)
+      : await supabase.from('agendamentos').insert(payload)
     setSalvando(false)
+    if (error) { setErro(error.message); return }
+    setModalAberto(false); carregar()
+  }
+
+  async function mudarStatus(a: Agendamento, s: StatusAg) {
+    await supabase.from('agendamentos').update({ status: s }).eq('id', a.id)
     carregar()
   }
 
-  async function mudarStatus(id: string, status: string) {
-    await supabase.from('agendamentos').update({ status }).eq('id', id)
-    carregar()
+  function selecionarPaciente(p: PacienteLite) {
+    setEditando({ ...editando, paciente_id: p.id, paciente_nome: p.nome, telefone: p.telefone, procedimento: p.procedimento || editando.procedimento })
+    setBuscaPac(p.nome)
   }
 
-  const semana = semanaAtual()
-  const hoje   = new Date().toISOString().split('T')[0]
+  const filtrados = useMemo(() => {
+    const [ws, we] = weekBounds(); const h = hoje()
+    return ags.filter((a) => {
+      if (filtro === 'hoje' && a.data !== h) return false
+      if (filtro === 'semana' && (a.data < ws || a.data > we)) return false
+      if (filtroStatus !== 'todos' && a.status !== filtroStatus) return false
+      return true
+    })
+  }, [ags, filtro, filtroStatus])
 
-  const doDia = agendamentos.filter(a => a.data === diaSelecionado &&
-    (filtroStatus === 'todos' || a.status === filtroStatus)
-  )
+  const kpis = useMemo(() => {
+    const h = hoje(); const am = amanha()
+    const doDia = ags.filter((a) => a.data === h)
+    return {
+      hoje: doDia.length,
+      confirmados: doDia.filter((a) => a.status === 'confirmado').length,
+      aguardando: doDia.filter((a) => a.status === 'agendado').length,
+      amanha: ags.filter((a) => a.data === am).length,
+      compareceu: doDia.filter((a) => a.status === 'compareceu').length,
+    }
+  }, [ags])
 
-  const countDia = (data: string) =>
-    agendamentos.filter(a => a.data === data).length
+  const pacFiltrados = useMemo(() => pacientes.filter((p) => p.nome.toLowerCase().includes(buscaPac.toLowerCase())).slice(0, 6), [pacientes, buscaPac])
 
   return (
     <div className="min-h-screen bg-gray-950 flex">
       <Sidebar />
-
       <div className="flex-1 p-8 overflow-auto">
-
-        {/* Header */}
-        <div className="flex items-center justify-between mb-8">
+        <div className="flex items-center justify-between mb-6">
           <div>
-            <h2 className="text-white text-2xl font-bold">Agenda</h2>
-            <p className="text-gray-400 mt-1">{agendamentos.length} agendamentos registrados</p>
+            <h1 className="text-white text-2xl font-bold flex items-center gap-2">📅 Agenda</h1>
+            <p className="text-gray-400 text-sm mt-1">Gerencie os agendamentos da clínica</p>
           </div>
-          <button
-            onClick={() => setModalAberto(true)}
-            className="bg-amber-500 hover:bg-amber-400 text-gray-950 font-semibold px-5 py-2.5 rounded-lg transition"
-          >
-            + Novo agendamento
+          <button onClick={abrirNovo} className="bg-amber-500 hover:bg-amber-400 text-gray-950 font-semibold px-5 py-2.5 rounded-lg transition text-sm">
+            + Novo Agendamento
           </button>
         </div>
 
-        {/* Calendário semanal */}
-        <div className="bg-gray-900 border border-gray-800 rounded-2xl p-6 mb-6">
-          <div className="flex items-center justify-between mb-4">
-            <h3 className="text-white font-semibold">Semana atual</h3>
-            <span className="text-gray-400 text-sm">
-              {formatarData(semana[0])} – {formatarData(semana[6])}
-            </span>
-          </div>
-          <div className="grid grid-cols-7 gap-2">
-            {semana.map((data, i) => {
-              const count  = countDia(data)
-              const ativo  = data === diaSelecionado
-              const ehHoje = data === hoje
-              return (
-                <button
-                  key={data}
-                  onClick={() => setDiaSelecionado(data)}
-                  className={`flex flex-col items-center p-3 rounded-xl transition ${
-                    ativo
-                      ? 'bg-amber-500 text-gray-950'
-                      : ehHoje
-                      ? 'bg-gray-800 border border-amber-500 text-white'
-                      : 'bg-gray-800 text-gray-400 hover:bg-gray-700'
-                  }`}
-                >
-                  <span className="text-xs font-medium">{DIAS_SEMANA[i]}</span>
-                  <span className="text-lg font-bold mt-1">{data.split('-')[2]}</span>
-                  {count > 0 && (
-                    <span className={`text-xs mt-1 font-semibold ${ativo ? 'text-gray-950' : 'text-amber-500'}`}>
-                      {count} ag.
-                    </span>
-                  )}
-                </button>
-              )
-            })}
-          </div>
+        <div className="grid grid-cols-2 md:grid-cols-5 gap-4 mb-6">
+          <Kpi label="Hoje" valor={kpis.hoje} sub="agendamentos" cor="text-amber-400" />
+          <Kpi label="Confirmados" valor={kpis.confirmados} sub="para hoje" cor="text-green-400" />
+          <Kpi label="Aguardando" valor={kpis.aguardando} sub="confirmação" cor="text-blue-400" />
+          <Kpi label="Compareceu" valor={kpis.compareceu} sub="hoje" cor="text-green-400" />
+          <Kpi label="Amanhã" valor={kpis.amanha} sub="agendamentos" cor="text-amber-400" />
         </div>
 
-        {/* Filtro status + lista do dia */}
-        <div className="bg-gray-900 border border-gray-800 rounded-2xl p-6">
-          <div className="flex items-center justify-between mb-4">
-            <h3 className="text-white font-semibold">
-              {formatarData(diaSelecionado)} — {doDia.length} agendamentos
-            </h3>
-            <div className="flex gap-2">
-              {['todos', ...STATUS_LISTA].map(s => (
-                <button
-                  key={s}
-                  onClick={() => setFiltroStatus(s)}
-                  className={`text-xs px-3 py-1 rounded-full transition font-medium ${
-                    filtroStatus === s
-                      ? 'bg-amber-500 text-gray-950'
-                      : 'bg-gray-800 text-gray-400 hover:bg-gray-700'
-                  }`}
-                >
-                  {s === 'todos' ? 'Todos' : s.charAt(0).toUpperCase() + s.slice(1)}
-                </button>
-              ))}
-            </div>
-          </div>
+        <div className="flex flex-wrap gap-2 mb-4">
+          {(['hoje', 'semana', 'todos'] as const).map((f) => (
+            <button key={f} onClick={() => setFiltro(f)}
+              className={`px-4 py-2 rounded-lg text-xs font-medium transition ${filtro === f ? 'bg-amber-500 text-gray-950' : 'bg-gray-900 text-gray-400 hover:text-white border border-gray-800'}`}>
+              {f === 'hoje' ? 'Hoje' : f === 'semana' ? 'Esta semana' : 'Todos'}
+            </button>
+          ))}
+          <div className="w-px bg-gray-800 mx-2" />
+          {(['todos', 'agendado', 'confirmado', 'compareceu', 'cancelado', 'noshow'] as const).map((s) => (
+            <button key={s} onClick={() => setFiltroStatus(s)}
+              className={`px-4 py-2 rounded-lg text-xs font-medium transition ${filtroStatus === s ? 'bg-amber-500 text-gray-950' : 'bg-gray-900 text-gray-400 hover:text-white border border-gray-800'}`}>
+              {s === 'todos' ? 'Todos' : STATUS[s as StatusAg].label}
+            </button>
+          ))}
+        </div>
 
-          {doDia.length === 0 ? (
-            <div className="text-center py-16 text-gray-500">
-              Nenhum agendamento para este dia.
-            </div>
-          ) : (
-            <div className="space-y-3">
-              {doDia.map(ag => (
-                <div
-                  key={ag.id}
-                  className="bg-gray-800 border border-gray-700 rounded-xl p-4 flex items-center gap-4"
-                >
-                  {/* Hora */}
-                  <div className="text-amber-500 font-bold text-lg w-16 shrink-0">
-                    {ag.hora.slice(0, 5)}
-                  </div>
+        {erro && <div className="bg-red-900/30 border border-red-700/50 text-red-300 px-4 py-3 rounded-lg text-sm mb-4">⚠️ {erro}</div>}
 
-                  {/* Info */}
-                  <div className="flex-1 min-w-0">
-                    <p className="text-white font-semibold text-sm truncate">{ag.paciente_nome}</p>
-                    <p className="text-gray-400 text-xs mt-0.5">{ag.procedimento}</p>
-                    {ag.observacoes && (
-                      <p className="text-gray-500 text-xs mt-1 truncate">{ag.observacoes}</p>
-                    )}
-                  </div>
-
-                  {/* Status badge + select */}
-                  <div className="shrink-0">
-                    <select
-                      value={ag.status}
-                      onChange={e => mudarStatus(ag.id, e.target.value)}
-                      className={`text-xs font-semibold px-3 py-1.5 rounded-full border-0 cursor-pointer ${STATUS_COR[ag.status] ?? 'bg-gray-700 text-gray-300'}`}
-                    >
-                      {STATUS_LISTA.map(s => (
-                        <option key={s} value={s}>
-                          {s.charAt(0).toUpperCase() + s.slice(1)}
-                        </option>
-                      ))}
-                    </select>
+        {loading ? (
+          <div className="text-center py-20 text-gray-500">Carregando…</div>
+        ) : filtrados.length === 0 ? (
+          <div className="text-center py-20 text-gray-500">Nenhum agendamento encontrado.</div>
+        ) : (
+          <div className="space-y-2">
+            {filtrados.map((a) => (
+              <div key={a.id} className="bg-gray-900 border border-gray-800 hover:border-amber-600/40 rounded-xl p-4 flex items-center gap-4 transition group">
+                <div className="w-16 text-center shrink-0">
+                  <p className="text-amber-400 font-bold text-lg leading-none">{a.hora.slice(0, 5)}</p>
+                  <p className="text-gray-500 text-[10px] uppercase mt-1">
+                    {new Date(a.data + 'T00:00').toLocaleDateString('pt-BR', { day: '2-digit', month: 'short' })}
+                  </p>
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className="text-white font-semibold text-sm truncate">{a.paciente_nome}</p>
+                  <div className="flex items-center gap-3 mt-0.5 text-xs text-gray-400">
+                    {a.procedimento && <span>{a.procedimento}</span>}
+                    {a.telefone && <span>· {formatPhone(a.telefone)}</span>}
+                    <span>· {a.duracao_min || 60}min</span>
                   </div>
                 </div>
-              ))}
-            </div>
-          )}
-        </div>
-
-        {/* Resumo estatístico */}
-        <div className="grid grid-cols-5 gap-4 mt-6">
-          {STATUS_LISTA.map(s => {
-            const count = agendamentos.filter(a => a.status === s).length
-            return (
-              <div key={s} className="bg-gray-900 border border-gray-800 rounded-xl p-4 text-center">
-                <p className="text-gray-400 text-xs mb-1">{s.charAt(0).toUpperCase() + s.slice(1)}</p>
-                <p className="text-white text-2xl font-bold">{count}</p>
+                <span className={`text-[10px] px-2.5 py-1 rounded-full font-semibold border ${STATUS[a.status].cor}`}>
+                  {STATUS[a.status].label}
+                </span>
+                <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition">
+                  {a.status === 'agendado' && (
+                    <button onClick={() => mudarStatus(a, 'confirmado')} className="bg-amber-500/10 hover:bg-amber-500 text-amber-400 hover:text-gray-950 border border-amber-500/30 rounded px-3 py-1 text-xs font-medium transition">Confirmar</button>
+                  )}
+                  {(a.status === 'agendado' || a.status === 'confirmado') && (
+                    <button onClick={() => mudarStatus(a, 'compareceu')} className="bg-green-500/10 hover:bg-green-500 text-green-400 hover:text-gray-950 border border-green-500/30 rounded px-3 py-1 text-xs font-medium transition">Compareceu</button>
+                  )}
+                  <button onClick={() => abrirEdit(a)} className="bg-gray-800 hover:bg-gray-700 text-gray-300 rounded px-3 py-1 text-xs transition">Editar</button>
+                </div>
               </div>
-            )
-          })}
-        </div>
-
+            ))}
+          </div>
+        )}
       </div>
 
-      {/* Modal novo agendamento */}
       {modalAberto && (
-        <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50 p-4">
-          <div className="bg-gray-900 border border-gray-800 rounded-2xl p-6 w-full max-w-lg">
-            <h3 className="text-white font-bold text-lg mb-5">Novo agendamento</h3>
-
-            <div className="space-y-4">
-              <div>
-                <label className="text-gray-400 text-sm mb-1 block">Paciente</label>
-                <input
-                  type="text"
-                  value={form.paciente_nome}
-                  onChange={e => setForm({ ...form, paciente_nome: e.target.value })}
-                  placeholder="Nome do paciente"
-                  className="w-full bg-gray-800 border border-gray-700 rounded-lg px-4 py-2.5 text-white text-sm focus:outline-none focus:border-amber-500 transition"
-                />
-              </div>
-
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="text-gray-400 text-sm mb-1 block">Data</label>
-                  <input
-                    type="date"
-                    value={form.data}
-                    onChange={e => setForm({ ...form, data: e.target.value })}
-                    className="w-full bg-gray-800 border border-gray-700 rounded-lg px-4 py-2.5 text-white text-sm focus:outline-none focus:border-amber-500 transition"
-                  />
-                </div>
-                <div>
-                  <label className="text-gray-400 text-sm mb-1 block">Hora</label>
-                  <input
-                    type="time"
-                    value={form.hora}
-                    onChange={e => setForm({ ...form, hora: e.target.value })}
-                    className="w-full bg-gray-800 border border-gray-700 rounded-lg px-4 py-2.5 text-white text-sm focus:outline-none focus:border-amber-500 transition"
-                  />
-                </div>
-              </div>
-
-              <div>
-                <label className="text-gray-400 text-sm mb-1 block">Procedimento</label>
-                <select
-                  value={form.procedimento}
-                  onChange={e => setForm({ ...form, procedimento: e.target.value })}
-                  className="w-full bg-gray-800 border border-gray-700 rounded-lg px-4 py-2.5 text-white text-sm focus:outline-none focus:border-amber-500 transition"
-                >
-                  {PROCEDIMENTOS.map(p => <option key={p}>{p}</option>)}
-                </select>
-              </div>
-
-              <div>
-                <label className="text-gray-400 text-sm mb-1 block">Status inicial</label>
-                <select
-                  value={form.status}
-                  onChange={e => setForm({ ...form, status: e.target.value })}
-                  className="w-full bg-gray-800 border border-gray-700 rounded-lg px-4 py-2.5 text-white text-sm focus:outline-none focus:border-amber-500 transition"
-                >
-                  {STATUS_LISTA.map(s => (
-                    <option key={s} value={s}>{s.charAt(0).toUpperCase() + s.slice(1)}</option>
+        <div className="fixed inset-0 bg-black/70 z-50 flex items-center justify-center p-4" onClick={(e) => e.target === e.currentTarget && setModalAberto(false)}>
+          <div className="bg-gray-900 border border-gray-800 rounded-2xl p-6 max-w-xl w-full max-h-[90vh] overflow-y-auto">
+            <h2 className="text-white font-bold text-lg mb-4">{editando.id ? '✏️ Editar Agendamento' : '+ Novo Agendamento'}</h2>
+            <div className="mb-4 relative">
+              <label className="text-gray-400 text-xs mb-1.5 block font-medium">Paciente *</label>
+              <input type="text" value={buscaPac}
+                onChange={(e) => { setBuscaPac(e.target.value); setEditando({ ...editando, paciente_id: null, paciente_nome: e.target.value }) }}
+                placeholder="Buscar paciente ou digitar nome…"
+                className="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-white text-sm focus:outline-none focus:border-amber-500 transition" />
+              {buscaPac && !editando.paciente_id && pacFiltrados.length > 0 && (
+                <div className="absolute top-full left-0 right-0 mt-1 bg-gray-800 border border-gray-700 rounded-lg shadow-lg max-h-56 overflow-y-auto z-10">
+                  {pacFiltrados.map((p) => (
+                    <button key={p.id} onClick={() => selecionarPaciente(p)}
+                      className="w-full text-left px-3 py-2 hover:bg-gray-700 text-sm text-white border-b border-gray-700 last:border-0">
+                      <div className="font-medium">{p.nome}</div>
+                      {p.procedimento && <div className="text-xs text-amber-400">{p.procedimento}</div>}
+                    </button>
                   ))}
-                </select>
-              </div>
-
+                </div>
+              )}
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <Campo label="Data *" type="date" value={editando.data || ''} onChange={(v) => setEditando({ ...editando, data: v })} />
+              <Campo label="Hora *" type="time" value={editando.hora || ''} onChange={(v) => setEditando({ ...editando, hora: v })} />
+              <Campo label="Telefone" value={editando.telefone || ''} onChange={(v) => setEditando({ ...editando, telefone: v })} placeholder="(48) 99999-9999" />
+              <Campo label="Duração (min)" type="number" value={String(editando.duracao_min || 60)} onChange={(v) => setEditando({ ...editando, duracao_min: Number(v) })} />
+              <Campo label="Procedimento" value={editando.procedimento || ''} onChange={(v) => setEditando({ ...editando, procedimento: v })} placeholder="Avaliação" />
               <div>
-                <label className="text-gray-400 text-sm mb-1 block">Observações</label>
-                <textarea
-                  value={form.observacoes}
-                  onChange={e => setForm({ ...form, observacoes: e.target.value })}
-                  placeholder="Observações opcionais..."
-                  rows={2}
-                  className="w-full bg-gray-800 border border-gray-700 rounded-lg px-4 py-2.5 text-white text-sm focus:outline-none focus:border-amber-500 transition resize-none"
-                />
+                <label className="text-gray-400 text-xs mb-1.5 block font-medium">Status</label>
+                <select value={editando.status || 'agendado'} onChange={(e) => setEditando({ ...editando, status: e.target.value as StatusAg })}
+                  className="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-white text-sm focus:outline-none focus:border-amber-500">
+                  {(Object.keys(STATUS) as StatusAg[]).map((s) => <option key={s} value={s}>{STATUS[s].label}</option>)}
+                </select>
               </div>
             </div>
-
+            <div className="mt-4">
+              <label className="text-gray-400 text-xs mb-1.5 block font-medium">Observações</label>
+              <textarea value={editando.observacoes || ''} onChange={(e) => setEditando({ ...editando, observacoes: e.target.value })} rows={2}
+                className="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-white text-sm focus:outline-none focus:border-amber-500 resize-none" />
+            </div>
             <div className="flex gap-3 mt-6">
-              <button
-                onClick={salvar}
-                disabled={salvando}
-                className="flex-1 bg-amber-500 hover:bg-amber-400 disabled:opacity-50 text-gray-950 font-semibold py-2.5 rounded-lg transition"
-              >
-                {salvando ? 'Salvando...' : 'Salvar agendamento'}
+              <button onClick={salvar} disabled={salvando || !editando.paciente_nome?.trim()}
+                className="flex-1 bg-amber-500 hover:bg-amber-400 disabled:opacity-40 disabled:cursor-not-allowed text-gray-950 font-semibold px-5 py-2.5 rounded-lg transition text-sm">
+                {salvando ? 'Salvando…' : editando.id ? 'Salvar' : 'Agendar'}
               </button>
-              <button
-                onClick={() => setModalAberto(false)}
-                className="flex-1 bg-gray-800 hover:bg-gray-700 text-gray-400 py-2.5 rounded-lg transition"
-              >
-                Cancelar
-              </button>
+              <button onClick={() => setModalAberto(false)} className="bg-gray-800 hover:bg-gray-700 text-gray-300 px-5 py-2.5 rounded-lg transition text-sm">Cancelar</button>
             </div>
           </div>
         </div>
       )}
+    </div>
+  )
+}
+
+function Kpi({ label, valor, sub, cor }: { label: string; valor: number; sub: string; cor: string }) {
+  return (
+    <div className="bg-gray-900 border border-gray-800 rounded-xl p-4">
+      <p className="text-[10px] uppercase tracking-wider text-gray-500 font-medium">{label}</p>
+      <p className={`text-2xl font-bold mt-1 ${cor}`}>{valor}</p>
+      <p className="text-gray-600 text-[10px] mt-1">{sub}</p>
+    </div>
+  )
+}
+
+function Campo({ label, value, onChange, placeholder, type = 'text' }: { label: string; value: string; onChange: (v: string) => void; placeholder?: string; type?: string }) {
+  return (
+    <div>
+      <label className="text-gray-400 text-xs mb-1.5 block font-medium">{label}</label>
+      <input type={type} value={value} onChange={(e) => onChange(e.target.value)} placeholder={placeholder}
+        className="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-white text-sm focus:outline-none focus:border-amber-500 transition" />
     </div>
   )
 }
