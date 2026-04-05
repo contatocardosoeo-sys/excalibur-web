@@ -46,6 +46,22 @@ export default function CRM() {
     await carregarLeads()
   }
 
+  async function converterParaPaciente(lead: Lead) {
+    if (!confirm(`Converter "${lead.nome}" em paciente?`)) return
+    const { error } = await supabase.from('pacientes').insert({
+      lead_id: lead.id,
+      nome: lead.nome,
+      telefone: lead.telefone,
+      procedimento: lead.procedimento,
+      status: 'ativo',
+    })
+    if (error) {
+      alert('Erro: ' + error.message + (error.code === '42P01' ? '\n\nRode supabase/migrations/001_pacientes.sql no dashboard.' : ''))
+      return
+    }
+    alert(`✅ ${lead.nome} convertido em paciente!`)
+  }
+
   const etapas = ['Recebido', 'Contato feito', 'Agendado', 'Compareceu', 'Fechou']
 
   return (
@@ -181,6 +197,14 @@ export default function CRM() {
                     >
                       {etapas.map(e => <option key={e}>{e}</option>)}
                     </select>
+                    {(lead.etapa === 'Compareceu' || lead.etapa === 'Fechou') && (
+                      <button
+                        onClick={() => converterParaPaciente(lead)}
+                        className="mt-2 w-full bg-amber-500/10 hover:bg-amber-500 text-amber-400 hover:text-gray-950 border border-amber-500/30 hover:border-amber-500 rounded px-2 py-1 text-xs font-medium transition"
+                      >
+                        → Paciente
+                      </button>
+                    )}
                   </div>
                 ))}
               </div>
