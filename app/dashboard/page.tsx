@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react'
 import { supabase } from '../lib/supabase'
+import HeadDashboard from '../components/HeadDashboard'
 
 interface Lead {
   id: string
@@ -106,6 +107,11 @@ export default function Dashboard() {
               </div>
             </div>
           ))}
+        </div>
+
+        {/* HEAD — IA Insights */}
+        <div className="mt-8">
+          <HeadDashboard />
         </div>
 
       </div>
