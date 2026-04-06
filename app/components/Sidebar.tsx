@@ -13,6 +13,9 @@ const navItems = [
   { href: '/marketing', icon: '📈', label: 'Marketing' },
   { href: '/bi', icon: '📊', label: 'BI & Análise' },
   { href: '/academia', icon: '🎓', label: 'Academia' },
+  { href: '/projeto', icon: '📋', label: 'Projeto' },
+  { href: '/extensao', icon: '🔌', label: 'Extensão CRC' },
+  { href: '/studio', icon: '🛠️', label: 'Studio' },
 ]
 
 export default function Sidebar() {
