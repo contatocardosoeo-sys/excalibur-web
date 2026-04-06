@@ -269,7 +269,48 @@ export default function CEOPage() {
           )}
         </div>
 
-        {/* Row 6: Log + Sync */}
+        {/* Row 6: Comparativo Concorrentes */}
+        <div className="bg-gray-900 border border-gray-800 rounded-xl p-5 mb-5">
+          <h3 className="text-white font-semibold text-sm mb-3">🏆 Comparativo vs Concorrentes</h3>
+          <div className="overflow-x-auto">
+            <table className="w-full text-xs">
+              <thead>
+                <tr className="border-b border-gray-800">
+                  <th className="text-left text-gray-400 py-2 pr-4">Feature</th>
+                  <th className="text-center text-amber-400 py-2 px-2">Excalibur</th>
+                  <th className="text-center text-gray-400 py-2 px-2">Nexus</th>
+                  <th className="text-center text-gray-400 py-2 px-2">WaSeller</th>
+                  <th className="text-center text-gray-400 py-2 px-2">Clinicorp</th>
+                </tr>
+              </thead>
+              <tbody className="text-gray-300">
+                {[
+                  ['CRM + Funil de Leads', '✅', '✅', '❌', '⚠️'],
+                  ['WhatsApp Integrado', '✅', '❌', '✅', '❌'],
+                  ['Financeira + Crédito', '✅', '⚠️', '❌', '⚠️'],
+                  ['BI em Tempo Real', '✅', '⚠️', '❌', '⚠️'],
+                  ['IA Insights Automáticos', '🏆', '❌', '❌', '❌'],
+                  ['Academia de Treinamento', '🏆', '❌', '❌', '❌'],
+                  ['Sala de Controle CEO', '🏆', '❌', '❌', '❌'],
+                  ['Agenda Clínica', '✅', '✅', '❌', '✅'],
+                  ['Gestão de Pacientes', '✅', '⚠️', '❌', '✅'],
+                  ['Deploy Automático', '✅', '✅', 'N/A', '✅'],
+                ].map(([feat, exc, nex, was, cli], i) => (
+                  <tr key={i} className="border-b border-gray-800/50">
+                    <td className="py-1.5 pr-4 text-gray-300">{feat}</td>
+                    <td className="text-center py-1.5">{exc}</td>
+                    <td className="text-center py-1.5">{nex}</td>
+                    <td className="text-center py-1.5">{was}</td>
+                    <td className="text-center py-1.5">{cli}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+          <p className="text-gray-600 text-[10px] mt-2">✅ Tem · ⚠️ Parcial · ❌ Não tem · 🏆 Só Excalibur</p>
+        </div>
+
+        {/* Row 7: Log + Sync */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
           <div className="bg-gray-900 border border-gray-800 rounded-xl p-5">
             <h3 className="text-white font-semibold text-sm mb-3">📜 Log do HEAD</h3>
