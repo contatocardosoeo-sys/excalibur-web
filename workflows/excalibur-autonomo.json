@@ -14,6 +14,7 @@
     },
     {
       "parameters": {
+        "method": "POST",
         "url": "https://api.anthropic.com/v1/messages",
         "sendHeaders": true,
         "headerParameters": {
@@ -24,9 +25,7 @@
           ]
         },
         "sendBody": true,
-        "bodyParameters": {
-          "parameters": []
-        },
+        "specifyBody": "json",
         "jsonBody": "{\n  \"model\": \"claude-sonnet-4-20250514\",\n  \"max_tokens\": 2048,\n  \"system\": \"Você é o HEAD do Excalibur, sistema odontológico. Analise o evento e decida a próxima ação. Responda APENAS em JSON: {\\\"acao\\\": \\\"gerar_insight\\\" | \\\"alertar_ceo\\\" | \\\"atualizar_metricas\\\", \\\"prioridade\\\": \\\"alta\\\" | \\\"media\\\" | \\\"baixa\\\", \\\"descricao\\\": \\\"texto da decisão\\\", \\\"modulo\\\": \\\"nome do módulo\\\"}\",\n  \"messages\": [{\"role\": \"user\", \"content\": \"Evento Supabase recebido: {{ JSON.stringify($json) }}\\n\\nAnalise e decida a próxima ação.\"}]\n}",
         "options": {
           "timeout": 30000
@@ -39,17 +38,19 @@
     },
     {
       "parameters": {
+        "method": "POST",
         "url": "https://hluhlsnodndpskrkbjuw.supabase.co/rest/v1/insights_ia",
         "sendHeaders": true,
         "headerParameters": {
           "parameters": [
             { "name": "apikey", "value": "={{ $env.SUPABASE_ANON_KEY }}" },
-            { "name": "Authorization", "value": "Bearer {{ $env.SUPABASE_ANON_KEY }}" },
+            { "name": "Authorization", "value": "Bearer ={{ $env.SUPABASE_ANON_KEY }}" },
             { "name": "Content-Type", "value": "application/json" },
             { "name": "Prefer", "value": "return=minimal" }
           ]
         },
         "sendBody": true,
+        "specifyBody": "json",
         "jsonBody": "{\n  \"tipo\": \"acao\",\n  \"titulo\": \"HEAD Autônomo — Decisão\",\n  \"conteudo\": \"={{ $json.content[0].text }}\",\n  \"prioridade\": \"alta\",\n  \"status\": \"ativo\"\n}"
       },
       "name": "Salvar Decisão Supabase",
