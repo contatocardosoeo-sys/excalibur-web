@@ -5,6 +5,8 @@ import { supabase } from '../lib/supabase'
 import Sidebar from '../components/Sidebar'
 
 interface Lead { id: string; nome: string; telefone: string; procedimento: string; etapa: string; created_at: string }
+interface Resposta { id: string; titulo: string; categoria: string; acoes: unknown[]; ativo: boolean; usos: number }
+interface Categoria { id: string; nome: string; cor: string; ordem: number }
 
 const FEATURES = [
   { nome: 'Abas com contadores', status: 'pronto', desc: 'Recepção, Mapeamento, Explicação, Agendamento, etc.' },
@@ -46,12 +48,21 @@ function ago(dt: string) {
 
 export default function ExtensaoPage() {
   const [leads, setLeads] = useState<Lead[]>([])
+  const [respostas, setRespostas] = useState<Resposta[]>([])
+  const [categorias, setCategorias] = useState<Categoria[]>([])
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
-    supabase.from('leads').select('id,nome,telefone,procedimento,etapa,created_at')
-      .order('created_at', { ascending: false }).limit(10)
-      .then(({ data }) => { if (data) setLeads(data as Lead[]); setLoading(false) })
+    Promise.all([
+      supabase.from('leads').select('id,nome,telefone,procedimento,etapa,created_at').order('created_at', { ascending: false }).limit(10),
+      supabase.from('respostas_rapidas').select('id,titulo,categoria,acoes,ativo,usos').eq('ativo', true).order('categoria'),
+      supabase.from('categorias_resposta').select('*').order('ordem'),
+    ]).then(([l, r, c]) => {
+      if (l.data) setLeads(l.data as Lead[])
+      if (r.data) setRespostas(r.data as Resposta[])
+      if (c.data) setCategorias(c.data as Categoria[])
+      setLoading(false)
+    })
 
     const ch = supabase.channel('ext-rt')
       .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'leads' }, (p) =>
@@ -61,6 +72,10 @@ export default function ExtensaoPage() {
   }, [])
 
   const prontos = FEATURES.filter(f => f.status === 'pronto').length
+  const respostasPorCat = categorias.map(c => ({
+    ...c,
+    count: respostas.filter(r => r.categoria === c.nome).length
+  }))
 
   return (
     <div className="min-h-screen bg-gray-950 flex">
@@ -81,7 +96,7 @@ export default function ExtensaoPage() {
         <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-5">
           <Kpi label="Features" valor={`${prontos}/${FEATURES.length}`} sub="implementadas" cor="text-green-400" />
           <Kpi label="Leads via Ext" valor={String(leads.length)} sub="últimos salvos" cor="text-amber-400" />
-          <Kpi label="Categorias" valor={String(CATEGORIAS.length)} sub="de respostas" cor="text-blue-400" />
+          <Kpi label="Respostas" valor={String(respostas.length)} sub="importadas WaSeller" cor="text-blue-400" />
           <Kpi label="Status" valor="Ativa" sub="extensão instalada" cor="text-green-400" />
         </div>
 
@@ -102,17 +117,15 @@ export default function ExtensaoPage() {
             </div>
           </div>
 
-          {/* Categorias */}
+          {/* Categorias reais do Supabase */}
           <div className="bg-gray-900 border border-gray-800 rounded-xl p-5">
-            <h3 className="text-white font-semibold text-sm mb-3">Categorias de Respostas</h3>
-            <div className="space-y-2">
-              {CATEGORIAS.map((c) => (
-                <div key={c.nome} className="flex items-center gap-3 bg-gray-800 rounded-lg p-2.5">
-                  <span className={`w-3 h-3 rounded-full ${c.cor}`} />
-                  <div>
-                    <p className="text-white text-xs font-medium">{c.nome}</p>
-                    <p className="text-gray-500 text-[10px]">{c.desc}</p>
-                  </div>
+            <h3 className="text-white font-semibold text-sm mb-3">Categorias ({categorias.length} do WaSeller)</h3>
+            <div className="space-y-1.5 max-h-80 overflow-y-auto">
+              {respostasPorCat.map((c) => (
+                <div key={c.id} className="flex items-center gap-3 bg-gray-800 rounded-lg p-2.5">
+                  <span className="w-3 h-3 rounded-full shrink-0" style={{ backgroundColor: c.cor }} />
+                  <span className="text-white text-xs font-medium flex-1">{c.nome}</span>
+                  <span className="text-amber-400 text-xs font-bold">{c.count}</span>
                 </div>
               ))}
             </div>
