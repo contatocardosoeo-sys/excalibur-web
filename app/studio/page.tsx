@@ -18,14 +18,16 @@ function ago(dt: string) {
 }
 
 const COMMITS = [
-  { hash: 'ea2c296', msg: 'fix(n8n): método POST nos HTTP Request nodes', time: '5 abr' },
-  { hash: 'd32a562', msg: 'fix(seguranca): Supabase client usa env vars', time: '5 abr' },
-  { hash: '056f833', msg: 'feat(autonomo): sistema autônomo N8N + Claude API + loop 24/7', time: '5 abr' },
-  { hash: 'd2d3adc', msg: 'feat(agente-11): CRM auto-conversão lead→paciente', time: '5 abr' },
-  { hash: '080f76e', msg: 'perf(agente-10): select específico nas queries', time: '5 abr' },
-  { hash: '877ae4b', msg: 'feat(agente-4): APIs backend + security headers', time: '5 abr' },
-  { hash: '9008c79', msg: 'fix(dashboard): Sidebar component + receita real', time: '5 abr' },
-  { hash: '84545cb', msg: 'feat(ceo): sala de controle com gráficos Recharts', time: '5 abr' },
+  { hash: '88d2fff', msg: 'feat(autonomo): N8N fluxo completo + loop 30min + sistema_status', time: '5 abr 2026' },
+  { hash: 'f5458a8', msg: 'feat(pages): /projeto + /extensao + /studio — visão completa', time: '5 abr 2026' },
+  { hash: 'ea2c296', msg: 'fix(n8n): método POST nos HTTP Request nodes', time: '5 abr 2026' },
+  { hash: 'd32a562', msg: 'fix(seguranca): Supabase client usa env vars em vez de hardcoded', time: '5 abr 2026' },
+  { hash: '056f833', msg: 'feat(autonomo): sistema autônomo N8N + Claude API + loop 24/7', time: '5 abr 2026' },
+  { hash: 'd2d3adc', msg: 'feat(agente-11): CRM usa Sidebar + auto-conversão lead→paciente ao fechar', time: '5 abr 2026' },
+  { hash: '877ae4b', msg: 'feat(agente-4): APIs backend + security headers + comparativo concorrentes', time: '5 abr 2026' },
+  { hash: '9008c79', msg: 'fix(dashboard): usar Sidebar component + receita real do Supabase', time: '5 abr 2026' },
+  { hash: '84545cb', msg: 'feat(ceo): sala de controle executiva completa com gráficos Recharts', time: '5 abr 2026' },
+  { hash: '9491b2a', msg: 'feat(ceo): Visão CEO executiva em tempo real', time: '5 abr 2026' },
 ]
 
 const PRIO_COR: Record<string, string> = {
@@ -81,7 +83,7 @@ export default function StudioPage() {
           <StatusCard label="Dev Server" valor="localhost:3000" status="online" />
           <StatusCard label="Vercel" valor="excalibur-web" status="online" />
           <StatusCard label="Supabase" valor="PostgreSQL" status="online" />
-          <StatusCard label="HEAD IA" valor="Loop 5min" status="online" />
+          <StatusCard label="HEAD IA" valor="Loop 30min" status="online" />
           <StatusCard label="N8N" valor="Cloud" status="online" />
         </div>
 
@@ -138,12 +140,15 @@ export default function StudioPage() {
             {loading ? <p className="text-gray-500 text-xs text-center py-6">Carregando...</p> : syncs.length === 0 ? (
               <p className="text-gray-500 text-xs text-center py-6">Sem atividade registrada</p>
             ) : (
-              <div className="space-y-1.5 max-h-64 overflow-y-auto">
+              <div className="space-y-2 max-h-72 overflow-y-auto">
                 {syncs.map((s) => (
-                  <div key={s.id} className="flex items-center gap-2 text-xs bg-gray-800 rounded-lg p-2.5">
-                    <span className={`w-2 h-2 rounded-full shrink-0 ${s.status === 'ok' ? 'bg-green-500' : 'bg-red-500'}`} />
-                    <span className="text-gray-300 flex-1 truncate">{s.origem} → {s.destino}{s.detalhes ? ` · ${s.detalhes.slice(0, 40)}` : ''}</span>
-                    <span className="text-gray-600 shrink-0">{ago(s.created_at)}</span>
+                  <div key={s.id} className="bg-gray-800 rounded-lg p-3">
+                    <div className="flex items-center gap-2 mb-1">
+                      <span className={`w-2 h-2 rounded-full shrink-0 ${s.status === 'ok' ? 'bg-green-500' : 'bg-red-500'}`} />
+                      <span className="text-amber-400 text-xs font-medium">{s.origem} → {s.destino}</span>
+                      <span className="text-gray-600 text-[9px] ml-auto">{ago(s.created_at)}</span>
+                    </div>
+                    {s.detalhes && <p className="text-gray-400 text-[10px] leading-relaxed ml-4">{s.detalhes.slice(0, 200)}</p>}
                   </div>
                 ))}
               </div>
@@ -156,16 +161,19 @@ export default function StudioPage() {
               Insights do HEAD IA <span className="w-2 h-2 rounded-full bg-amber-500 animate-pulse" />
             </h3>
             {loading ? <p className="text-gray-500 text-xs text-center py-6">Carregando...</p> : insights.length === 0 ? (
-              <p className="text-gray-500 text-xs text-center py-6">Rode <code className="text-amber-400">npm run head</code> para gerar insights</p>
+              <p className="text-gray-500 text-xs text-center py-6">Nenhum insight gerado ainda</p>
             ) : (
-              <div className="space-y-2 max-h-64 overflow-y-auto">
+              <div className="space-y-2 max-h-72 overflow-y-auto">
                 {insights.map((i) => (
                   <div key={i.id} className={`border rounded-lg p-3 ${PRIO_COR[i.prioridade] || PRIO_COR.media}`}>
-                    <div className="flex items-center justify-between mb-1">
-                      <span className="text-xs font-medium text-white">{i.titulo?.slice(0, 40)}</span>
-                      <span className="text-gray-600 text-[9px]">{ago(i.created_at)}</span>
+                    <div className="flex items-center justify-between mb-1.5">
+                      <div className="flex items-center gap-2">
+                        <span className={`text-[9px] px-1.5 py-0.5 rounded font-bold uppercase ${i.prioridade === 'alta' ? 'bg-red-500/30 text-red-400' : i.prioridade === 'media' ? 'bg-amber-500/30 text-amber-400' : 'bg-gray-700 text-gray-400'}`}>{i.prioridade}</span>
+                        <span className="text-xs font-medium text-white">{i.titulo}</span>
+                      </div>
+                      <span className="text-gray-600 text-[9px] shrink-0">{ago(i.created_at)}</span>
                     </div>
-                    <p className="text-gray-400 text-[10px] leading-relaxed">{i.conteudo?.slice(0, 120)}{(i.conteudo?.length || 0) > 120 ? '…' : ''}</p>
+                    <p className="text-gray-300 text-[11px] leading-relaxed">{i.conteudo?.slice(0, 300)}{(i.conteudo?.length || 0) > 300 ? '…' : ''}</p>
                   </div>
                 ))}
               </div>

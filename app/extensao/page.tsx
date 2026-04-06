@@ -14,9 +14,9 @@ const FEATURES = [
   { nome: 'Integração Supabase', status: 'pronto', desc: 'Salva leads direto no banco' },
   { nome: 'Visual dark + amber', status: 'pronto', desc: 'Identidade visual consistente' },
   { nome: 'Busca + filtros', status: 'parcial', desc: 'Campo de busca implementado' },
-  { nome: 'Sync bidirecional CRM', status: 'falta', desc: 'Leads do CRM aparecem na extensão' },
-  { nome: 'Agendar do WhatsApp', status: 'falta', desc: 'Criar agendamento direto da conversa' },
-  { nome: 'Sugestão de resposta IA', status: 'falta', desc: 'HEAD sugere próxima resposta baseada na etapa' },
+  { nome: 'Sync bidirecional CRM', status: 'falta', desc: 'Leads do CRM aparecem na extensão — v0.6' },
+  { nome: 'Agendar do WhatsApp', status: 'falta', desc: 'Criar agendamento direto da conversa — v0.7' },
+  { nome: 'Sugestão de resposta IA', status: 'falta', desc: 'HEAD sugere próxima resposta — v0.8' },
 ]
 
 const STATUS_COR: Record<string, string> = {

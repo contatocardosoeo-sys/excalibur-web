@@ -25,10 +25,12 @@ const MODULOS_DEFAULT = [
   { modulo: 'HEAD IA', progresso: 100, status: 'concluido' },
   { modulo: 'Academia', progresso: 20, status: 'parcial' },
   { modulo: 'Extensão Chrome', progresso: 80, status: 'parcial' },
-  { modulo: 'Sistema Autônomo', progresso: 100, status: 'concluido' },
+  { modulo: 'Sistema Autônomo', progresso: 70, status: 'parcial' },
 ]
 
 const TASKS = [
+  { prioridade: 'critico', desc: 'Multi-clínica com isolamento real por clínica (RLS)', modulo: 'Plataforma' },
+  { prioridade: 'critico', desc: 'Permissões por papel: admin, atendente, financeiro', modulo: 'Segurança' },
   { prioridade: 'critico', desc: 'Calendar view semanal na Agenda', modulo: 'Agenda' },
   { prioridade: 'critico', desc: 'Tracking de pagamentos no Financeiro', modulo: 'Financeiro' },
   { prioridade: 'alta', desc: 'Extensão Chrome ↔ CRM sync bidirecional', modulo: 'Extensão' },

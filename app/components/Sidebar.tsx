@@ -48,8 +48,8 @@ export default function Sidebar() {
       </nav>
 
       <div className="p-4 border-t border-gray-800">
-        <p className="text-gray-500 text-xs">Clínica Exemplo</p>
-        <p className="text-gray-400 text-sm font-medium">Dr. João Silva</p>
+        <p className="text-gray-500 text-xs">Excalibur v0.4.0</p>
+        <p className="text-gray-400 text-sm font-medium">⚔️ Sistema Operacional</p>
       </div>
     </div>
   )
