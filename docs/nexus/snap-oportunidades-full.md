@@ -1,0 +1,107 @@
+- generic [ref=e8]:
+  - complementary [ref=e10]:
+    - img "Nexus Atemporal" [ref=e12]
+    - button "Todas unidades" [ref=e14]:
+      - img [ref=e15]
+      - generic [ref=e19]: Todas unidades
+      - img [ref=e20]
+    - generic [ref=e22]:
+      - generic [ref=e23]:
+        - heading "Principal" [level=3] [ref=e24]
+        - button "Dashboard" [ref=e26]:
+          - img [ref=e28]
+          - generic [ref=e33]: Dashboard
+      - generic [ref=e35]:
+        - heading "Vendas" [level=3] [ref=e36]
+        - generic [ref=e37]:
+          - button "Dashboard Vendas" [ref=e38]
+          - button "Leads" [ref=e44]
+          - button "Oportunidades" [ref=e52]
+          - button "Propostas" [ref=e60]
+          - button "Time Comercial" [ref=e68]
+          - button "Comissões" [ref=e75]
+          - button "Metas e OKRs" [ref=e82]
+          - button "Campanhas" [ref=e91]
+      - generic [ref=e97]:
+        - heading "Nexus Chat" [level=3] [ref=e98]
+        - button "Nexus Chat" [ref=e100]:
+          - img [ref=e102]
+          - generic [ref=e104]: Nexus Chat
+      - generic [ref=e106]:
+        - heading "Clínica" [level=3] [ref=e107]
+        - generic [ref=e108]:
+          - button "Agenda" [ref=e109]
+          - button "Pacientes" [ref=e114]
+          - button "Procedimentos" [ref=e121]
+          - button "Lista de Espera" [ref=e128]
+      - generic [ref=e135]:
+        - heading "Gestão" [level=3] [ref=e136]
+        - generic [ref=e137]:
+          - button "Financeiro" [ref=e138]
+          - button "Estoque" [ref=e144]
+          - button "BI & Analytics" [ref=e151]
+      - generic [ref=e157]:
+        - heading "Colaboração" [level=3] [ref=e158]
+        - generic [ref=e159]:
+          - button "Nexus Hub" [ref=e160]
+          - button "Mural & Feed" [ref=e165]
+          - button "Eventos & Cals" [ref=e174]
+          - button "Base Wiki" [ref=e179]
+          - button "Kudos & Cheers" [ref=e185]
+          - button "Insights Engaj." [ref=e190]
+      - generic [ref=e197]:
+        - heading "Marketing" [level=3] [ref=e198]
+        - generic [ref=e199]:
+          - button "Gestor de Anúncios" [ref=e200]
+          - button "Assistente IA" [ref=e205]
+          - button "Automações" [ref=e211]
+          - button "Reputação" [ref=e216]
+          - button "Indicação" [ref=e222]
+          - button "Relatórios Mkt" [ref=e229]
+          - button "Instagram" [ref=e234]
+          - button "Disparo WhatsApp" [ref=e240]
+          - button "Páginas/LPs" [ref=e245]
+      - generic [ref=e253]:
+        - heading "Sistema" [level=3] [ref=e254]
+        - generic [ref=e255]:
+          - button "Suporte" [ref=e256]
+          - button "Configurações" [ref=e266]
+    - button "Recolher" [ref=e275]:
+      - img [ref=e276]
+  - generic [ref=e279]:
+    - banner [ref=e280]:
+      - generic [ref=e281]:
+        - generic [ref=e282]: Nexus
+        - img [ref=e283]
+        - heading "Oportunidades" [level=1] [ref=e285]
+      - generic [ref=e287]:
+        - img [ref=e288]
+        - textbox "Buscar por pacientes, agendamentos..." [ref=e291]
+        - generic:
+          - img
+          - generic: K
+      - generic [ref=e292]:
+        - button "Alternar tema" [ref=e293]:
+          - img [ref=e295]
+          - generic: Modo Escuro
+        - button [ref=e298]:
+          - img [ref=e299]
+        - button "contato.cardosoeo@gmail.com Avatar" [ref=e304]:
+          - generic [ref=e305]: contato.cardosoeo@gmail.com
+          - img "Avatar" [ref=e306]
+          - img [ref=e307]
+    - main [ref=e309]:
+      - generic [ref=e311]:
+        - generic [ref=e312]:
+          - generic [ref=e313]
+          - generic [ref=e316]
+        - generic [ref=e325]:
+          - generic [ref=e326]
+          - generic [ref=e332]
+          - generic [ref=e338]
+        - generic [ref=e354]:
+          - generic [ref=e355]
+          - generic [ref=e360]
+        - generic [ref=e368]:
+          - generic [ref=e369]
+          - status [ref=e502]

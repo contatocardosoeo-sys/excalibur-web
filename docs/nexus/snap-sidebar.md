@@ -1,0 +1,57 @@
+- generic [active] [ref=e1]:
+  - generic [ref=e8]:
+    - complementary [ref=e10]:
+      - img "Nexus Atemporal" [ref=e12]
+      - button "Todas unidades" [ref=e14]:
+        - img [ref=e15]
+        - generic [ref=e19]: Todas unidades
+        - img [ref=e20]
+      - generic [ref=e22]:
+        - generic [ref=e23]:
+          - heading "Principal" [level=3] [ref=e24]
+          - button "Dashboard" [ref=e26]
+        - generic [ref=e36]:
+          - heading "Vendas" [level=3] [ref=e37]
+          - generic [ref=e38]
+        - generic [ref=e97]:
+          - heading "Nexus Chat" [level=3] [ref=e98]
+          - button "Nexus Chat" [ref=e100]
+        - generic [ref=e106]:
+          - heading "Clínica" [level=3] [ref=e107]
+          - generic [ref=e108]
+        - generic [ref=e135]:
+          - heading "Gestão" [level=3] [ref=e136]
+          - generic [ref=e137]
+        - generic [ref=e157]:
+          - heading "Colaboração" [level=3] [ref=e158]
+          - generic [ref=e159]
+        - generic [ref=e197]:
+          - heading "Marketing" [level=3] [ref=e198]
+          - generic [ref=e199]
+        - generic [ref=e253]:
+          - heading "Sistema" [level=3] [ref=e254]
+          - generic [ref=e255]
+      - button "Recolher" [ref=e275]:
+        - img [ref=e276]
+    - generic [ref=e279]:
+      - banner [ref=e280]:
+        - generic [ref=e281]:
+          - generic [ref=e282]: Nexus
+          - img [ref=e283]
+          - heading "Dashboard" [level=1] [ref=e285]
+        - generic [ref=e287]:
+          - img [ref=e288]
+          - textbox "Buscar por pacientes, agendamentos..." [ref=e291]
+          - generic
+        - generic [ref=e292]:
+          - button "Alternar tema" [ref=e293]
+          - button [ref=e298]
+          - button "contato.cardosoeo@gmail.com Avatar" [ref=e304]
+      - main [ref=e309]:
+        - generic [ref=e311]:
+          - generic [ref=e312]
+          - generic [ref=e380]
+          - generic [ref=e468]
+          - generic [ref=e762]
+          - generic [ref=e971]
+  - generic [ref=e977]: R$ -3000
