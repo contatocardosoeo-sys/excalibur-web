@@ -1,0 +1,119 @@
+{
+  "name": "Excalibur — Fluxo Completo",
+  "nodes": [
+    {
+      "parameters": { "path": "lead-novo", "httpMethod": "POST", "responseMode": "onReceived" },
+      "name": "Webhook Lead Novo",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [250, 200]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.anthropic.com/v1/messages",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            { "name": "x-api-key", "value": "={{ $env.ANTHROPIC_API_KEY }}" },
+            { "name": "anthropic-version", "value": "2023-06-01" },
+            { "name": "content-type", "value": "application/json" }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "{\n  \"model\": \"claude-sonnet-4-20250514\",\n  \"max_tokens\": 512,\n  \"system\": \"Você é o HEAD do Excalibur. Um novo lead chegou. Analise e sugira: 1) categoria de resposta rápida ideal, 2) prioridade do lead, 3) próxima ação. Responda em JSON.\",\n  \"messages\": [{\"role\": \"user\", \"content\": \"Novo lead: {{ JSON.stringify($json) }}\"}]\n}"
+      },
+      "name": "Claude Analisa Lead",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 3,
+      "position": [500, 200]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://hluhlsnodndpskrkbjuw.supabase.co/rest/v1/insights_ia",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            { "name": "apikey", "value": "={{ $env.SUPABASE_ANON_KEY }}" },
+            { "name": "Authorization", "value": "Bearer {{ $env.SUPABASE_ANON_KEY }}" },
+            { "name": "Content-Type", "value": "application/json" },
+            { "name": "Prefer", "value": "return=minimal" }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "{\n  \"tipo\": \"oportunidade\",\n  \"titulo\": \"Novo lead — Sugestão IA\",\n  \"conteudo\": \"={{ $json.content[0].text }}\",\n  \"prioridade\": \"alta\",\n  \"status\": \"ativo\"\n}"
+      },
+      "name": "Salvar Sugestão Lead",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 3,
+      "position": [750, 200]
+    },
+    {
+      "parameters": { "path": "github", "httpMethod": "POST", "responseMode": "onReceived" },
+      "name": "Webhook GitHub",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [250, 450]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://hluhlsnodndpskrkbjuw.supabase.co/rest/v1/sync_log",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            { "name": "apikey", "value": "={{ $env.SUPABASE_ANON_KEY }}" },
+            { "name": "Authorization", "value": "Bearer {{ $env.SUPABASE_ANON_KEY }}" },
+            { "name": "Content-Type", "value": "application/json" },
+            { "name": "Prefer", "value": "return=minimal" }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "{\n  \"origem\": \"github\",\n  \"destino\": \"vercel\",\n  \"status\": \"ok\",\n  \"detalhes\": \"Push: {{ $json.head_commit ? $json.head_commit.message : 'deploy' }}\"\n}"
+      },
+      "name": "Log GitHub Push",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 3,
+      "position": [500, 450]
+    },
+    {
+      "parameters": { "path": "sync", "httpMethod": "POST", "responseMode": "onReceived" },
+      "name": "Webhook Sync",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [250, 700]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://hluhlsnodndpskrkbjuw.supabase.co/rest/v1/insights_ia",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            { "name": "apikey", "value": "={{ $env.SUPABASE_ANON_KEY }}" },
+            { "name": "Authorization", "value": "Bearer {{ $env.SUPABASE_ANON_KEY }}" },
+            { "name": "Content-Type", "value": "application/json" },
+            { "name": "Prefer", "value": "return=minimal" }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "{\n  \"tipo\": \"diagnostico\",\n  \"titulo\": \"Sync Event\",\n  \"conteudo\": \"Evento: {{ $json.origem || 'sistema' }} → {{ $json.destino || 'log' }}\",\n  \"prioridade\": \"baixa\",\n  \"status\": \"ativo\"\n}"
+      },
+      "name": "Log Sync Event",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 3,
+      "position": [500, 700]
+    }
+  ],
+  "connections": {
+    "Webhook Lead Novo": { "main": [[{ "node": "Claude Analisa Lead", "type": "main", "index": 0 }]] },
+    "Claude Analisa Lead": { "main": [[{ "node": "Salvar Sugestão Lead", "type": "main", "index": 0 }]] },
+    "Webhook GitHub": { "main": [[{ "node": "Log GitHub Push", "type": "main", "index": 0 }]] },
+    "Webhook Sync": { "main": [[{ "node": "Log Sync Event", "type": "main", "index": 0 }]] }
+  }
+}

@@ -5,7 +5,7 @@
 const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL || 'https://hluhlsnodndpskrkbjuw.supabase.co'
 const SUPABASE_KEY = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || process.env.SUPABASE_ANON_KEY
 const ANTHROPIC_KEY = process.env.ANTHROPIC_API_KEY
-const INTERVALO_MS = 5 * 60 * 1000 // 5 minutos
+const INTERVALO_MS = 30 * 60 * 1000 // 30 minutos
 
 async function supabaseQuery(table, params = '') {
   const res = await fetch(`${SUPABASE_URL}/rest/v1/${table}?${params}`, {
@@ -73,10 +73,11 @@ async function ciclo() {
 
   try {
     // 1. Coletar métricas
-    const [leads, agendamentos, propostas] = await Promise.all([
+    const [leads, agendamentos, propostas, modulos] = await Promise.all([
       supabaseQuery('leads', 'select=id,etapa,created_at'),
       supabaseQuery('agendamentos', 'select=id,status,data&order=data.desc&limit=50'),
       supabaseQuery('propostas', 'select=id,status,valor_total'),
+      supabaseQuery('sistema_status', 'select=modulo,status,progresso'),
     ])
 
     const metricas = {
@@ -98,11 +99,13 @@ async function ciclo() {
       .filter(p => p.status === 'pago')
       .reduce((s, p) => s + Number(p.valor_total), 0)
 
+    metricas.modulos = Array.isArray(modulos) ? modulos : []
+
     console.log('[HEAD] Métricas:', JSON.stringify(metricas, null, 2))
 
     // 2. Consultar Claude
     const decisao = await consultarClaude(
-      `Métricas atuais do Excalibur (${agora}):\n${JSON.stringify(metricas, null, 2)}\n\nGere um insight acionável.`
+      `Métricas atuais do Excalibur (${agora}):\n${JSON.stringify(metricas, null, 2)}\n\nGere um insight acionável para o CEO da clínica.`
     )
 
     if (!decisao) {
