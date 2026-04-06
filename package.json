@@ -7,7 +7,7 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
-    "head": "node --env-file=.env.local scripts/head-loop.js"
+    "head": "node --env-file=.env.local scripts/autonomo.js"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.101.1",

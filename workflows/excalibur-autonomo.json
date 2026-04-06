@@ -1,0 +1,73 @@
+{
+  "name": "Excalibur Autônomo",
+  "nodes": [
+    {
+      "parameters": {
+        "path": "excalibur",
+        "httpMethod": "POST",
+        "responseMode": "onReceived"
+      },
+      "name": "Webhook Trigger",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [250, 300]
+    },
+    {
+      "parameters": {
+        "url": "https://api.anthropic.com/v1/messages",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            { "name": "x-api-key", "value": "={{ $env.ANTHROPIC_API_KEY }}" },
+            { "name": "anthropic-version", "value": "2023-06-01" },
+            { "name": "content-type", "value": "application/json" }
+          ]
+        },
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": []
+        },
+        "jsonBody": "{\n  \"model\": \"claude-sonnet-4-20250514\",\n  \"max_tokens\": 2048,\n  \"system\": \"Você é o HEAD do Excalibur, sistema odontológico. Analise o evento e decida a próxima ação. Responda APENAS em JSON: {\\\"acao\\\": \\\"gerar_insight\\\" | \\\"alertar_ceo\\\" | \\\"atualizar_metricas\\\", \\\"prioridade\\\": \\\"alta\\\" | \\\"media\\\" | \\\"baixa\\\", \\\"descricao\\\": \\\"texto da decisão\\\", \\\"modulo\\\": \\\"nome do módulo\\\"}\",\n  \"messages\": [{\"role\": \"user\", \"content\": \"Evento Supabase recebido: {{ JSON.stringify($json) }}\\n\\nAnalise e decida a próxima ação.\"}]\n}",
+        "options": {
+          "timeout": 30000
+        }
+      },
+      "name": "Consultar Claude HEAD",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 3,
+      "position": [500, 300]
+    },
+    {
+      "parameters": {
+        "url": "https://hluhlsnodndpskrkbjuw.supabase.co/rest/v1/insights_ia",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            { "name": "apikey", "value": "={{ $env.SUPABASE_ANON_KEY }}" },
+            { "name": "Authorization", "value": "Bearer {{ $env.SUPABASE_ANON_KEY }}" },
+            { "name": "Content-Type", "value": "application/json" },
+            { "name": "Prefer", "value": "return=minimal" }
+          ]
+        },
+        "sendBody": true,
+        "jsonBody": "{\n  \"tipo\": \"acao\",\n  \"titulo\": \"HEAD Autônomo — Decisão\",\n  \"conteudo\": \"={{ $json.content[0].text }}\",\n  \"prioridade\": \"alta\",\n  \"status\": \"ativo\"\n}"
+      },
+      "name": "Salvar Decisão Supabase",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 3,
+      "position": [750, 300]
+    }
+  ],
+  "connections": {
+    "Webhook Trigger": {
+      "main": [
+        [{ "node": "Consultar Claude HEAD", "type": "main", "index": 0 }]
+      ]
+    },
+    "Consultar Claude HEAD": {
+      "main": [
+        [{ "node": "Salvar Decisão Supabase", "type": "main", "index": 0 }]
+      ]
+    }
+  }
+}

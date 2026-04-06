@@ -46,8 +46,8 @@ next-env.d.ts
 # study files (competitor analysis, not prod)
 study/
 
-# helper scripts
-scripts/
+# helper scripts (exceto excalibur scripts)
+# scripts/
 
 # debug screenshots at root
 *.png
