@@ -158,9 +158,18 @@ export default function CEOPage() {
     <div className="min-h-screen bg-gray-950 flex">
       <Sidebar />
       <div className="flex-1 p-6 overflow-auto">
-        <div className="mb-5">
-          <h1 className="text-white text-2xl font-bold flex items-center gap-2">👑 Sala de Controle — CEO</h1>
-          <p className="text-gray-400 text-sm mt-1">Visão executiva em tempo real — Excalibur v1.0</p>
+        <div className="mb-5 flex items-center justify-between">
+          <div>
+            <h1 className="text-white text-2xl font-bold flex items-center gap-2">👑 Sala de Controle — CEO</h1>
+            <p className="text-gray-400 text-sm mt-1">
+              {new Date().toLocaleDateString('pt-BR', { weekday: 'long', day: '2-digit', month: 'long', year: 'numeric' })}
+              {' · '}Excalibur v1.0
+            </p>
+          </div>
+          <div className="flex items-center gap-2">
+            <span className="w-2 h-2 rounded-full bg-green-500 animate-pulse" />
+            <span className="text-green-400 text-xs font-medium">Sistema Online</span>
+          </div>
         </div>
 
         {/* Row 1: KPIs */}
@@ -174,12 +183,13 @@ export default function CEOPage() {
         </div>
 
         {/* Row 2: Taxas + Financeiro */}
-        <div className="grid grid-cols-2 md:grid-cols-5 gap-3 mb-5">
+        <div className="grid grid-cols-2 md:grid-cols-6 gap-3 mb-5">
           <TaxaBar label="T. Agendamento" valor={metricas.txAg} cor="bg-blue-500" />
           <TaxaBar label="T. Comparecimento" valor={metricas.txComp} cor="bg-purple-500" />
           <TaxaBar label="T. Fechamento" valor={metricas.txFech} cor="bg-green-500" />
           <Kpi label="Pipeline" valor={fmt(metricas.pipeline)} cor="text-blue-400" />
           <Kpi label="Faturamento" valor={fmt(metricas.faturamento)} cor="text-green-400" />
+          <Kpi label="ROI" valor={`${metricas.roi.toFixed(0)}%`} cor={metricas.roi >= 0 ? 'text-green-400' : 'text-red-400'} />
         </div>
 
         {/* Row 3: Charts */}
