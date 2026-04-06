@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react'
 import { supabase } from '../lib/supabase'
+import Sidebar from '../components/Sidebar'
 
 interface Lead {
   id: string
@@ -23,9 +24,7 @@ export default function CRM() {
   })
 
   async function carregarLeads() {
-    const { data, error } = await supabase.from('leads').select('*')
-    console.log('dados:', data)
-    console.log('erro:', error)
+    const { data } = await supabase.from('leads').select('*')
     if (data) setLeads(data)
   }
 
@@ -43,6 +42,19 @@ export default function CRM() {
 
   async function mudarEtapa(id: string, etapa: string) {
     await supabase.from('leads').update({ etapa }).eq('id', id)
+    // Auto-converter lead em paciente ao fechar
+    if (etapa === 'Fechou') {
+      const lead = leads.find(l => l.id === id)
+      if (lead) {
+        await supabase.from('pacientes').upsert({
+          lead_id: lead.id,
+          nome: lead.nome,
+          telefone: lead.telefone,
+          procedimento: lead.procedimento,
+          status: 'ativo',
+        }, { onConflict: 'lead_id' })
+      }
+    }
     await carregarLeads()
   }
 
@@ -66,27 +78,7 @@ export default function CRM() {
 
   return (
     <div className="min-h-screen bg-gray-950 flex">
-
-      {/* Menu lateral */}
-      <div className="w-64 bg-gray-900 border-r border-gray-800 flex flex-col">
-        <div className="p-6 border-b border-gray-800">
-          <h1 className="text-white font-bold text-xl">⚔️ Excalibur</h1>
-          <p className="text-gray-500 text-xs mt-1">Sistema Operacional</p>
-        </div>
-        <nav className="p-4 flex flex-col gap-1">
-          <a href="/dashboard" className="flex items-center gap-3 px-3 py-2 rounded-lg text-gray-400 hover:bg-gray-800 text-sm">📊 Dashboard</a>
-          <a href="/crm" className="flex items-center gap-3 px-3 py-2 rounded-lg bg-amber-500 text-gray-950 font-semibold text-sm">👥 Leads / CRM</a>
-          <a className="flex items-center gap-3 px-3 py-2 rounded-lg text-gray-400 hover:bg-gray-800 text-sm cursor-pointer">🦷 Pacientes</a>
-          <a className="flex items-center gap-3 px-3 py-2 rounded-lg text-gray-400 hover:bg-gray-800 text-sm cursor-pointer">📅 Agenda</a>
-          <a className="flex items-center gap-3 px-3 py-2 rounded-lg text-gray-400 hover:bg-gray-800 text-sm cursor-pointer">💰 Financeiro</a>
-          <a className="flex items-center gap-3 px-3 py-2 rounded-lg text-gray-400 hover:bg-gray-800 text-sm cursor-pointer">📈 Marketing</a>
-          <a className="flex items-center gap-3 px-3 py-2 rounded-lg text-gray-400 hover:bg-gray-800 text-sm cursor-pointer">🎓 Academia</a>
-        </nav>
-        <div className="mt-auto p-4 border-t border-gray-800">
-          <p className="text-gray-500 text-xs">Clínica Exemplo</p>
-          <p className="text-gray-400 text-sm font-medium">Dr. João Silva</p>
-        </div>
-      </div>
+      <Sidebar />
 
       {/* Conteúdo */}
       <div className="flex-1 p-8 overflow-auto">
