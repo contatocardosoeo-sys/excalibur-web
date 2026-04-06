@@ -1,52 +1,32 @@
 'use client'
 
 import { useEffect, useState, useCallback, useMemo, DragEvent } from 'react'
-import { supabase } from '../lib/supabase'
 import Sidebar from '../components/Sidebar'
+import type { Oportunidade } from '../lib/database.types'
 
 // ── Types ────────────────────────────────────────────────────────────
-type EtapaOp = 'qualificacao' | 'proposta_enviada' | 'negociacao' | 'fechamento' | 'ganho' | 'perdido'
-type Temperatura = 'frio' | 'morno' | 'quente'
-type Origem = 'whatsapp' | 'instagram' | 'google' | 'indicacao' | 'outro'
-
-interface Oportunidade {
-  id: string
-  lead_id: string | null
-  nome: string
-  telefone: string
-  procedimento: string
-  valor_estimado: number
-  etapa: EtapaOp
-  temperatura: Temperatura
-  origem: Origem
-  vendedor: string | null
-  observacoes: string | null
-  created_at: string
-  updated_at: string
+interface OportunidadeKPIs {
+  valor_bruto_pipeline: number
+  forecast_ponderado: number
+  taxa_conversao: number
+  total_ativas: number
+  ganhas: number
+  perdidas: number
 }
 
-// ── Constants ────────────────────────────────────────────────────────
-const ETAPAS: { key: EtapaOp; label: string; cor: string; bg: string }[] = [
-  { key: 'qualificacao', label: 'Qualificacao', cor: 'text-blue-400', bg: 'border-blue-500/30' },
-  { key: 'proposta_enviada', label: 'Proposta Enviada', cor: 'text-purple-400', bg: 'border-purple-500/30' },
-  { key: 'negociacao', label: 'Negociacao', cor: 'text-amber-400', bg: 'border-amber-500/30' },
-  { key: 'fechamento', label: 'Fechamento', cor: 'text-orange-400', bg: 'border-orange-500/30' },
-  { key: 'ganho', label: 'Ganho', cor: 'text-green-400', bg: 'border-green-500/30' },
-  { key: 'perdido', label: 'Perdido', cor: 'text-red-400', bg: 'border-red-500/30' },
+type Estagio = 'Qualificacao' | 'Proposta Enviada' | 'Negociacao' | 'Fechamento' | 'Ganho' | 'Perdido'
+
+const ESTAGIOS: { key: Estagio; label: string; cor: string; bg: string; prob: number }[] = [
+  { key: 'Qualificacao',     label: 'Qualificacao',     cor: 'text-blue-400',   bg: 'border-blue-500/30',   prob: 20 },
+  { key: 'Proposta Enviada', label: 'Proposta Enviada', cor: 'text-purple-400', bg: 'border-purple-500/30', prob: 40 },
+  { key: 'Negociacao',       label: 'Negociacao',       cor: 'text-amber-400',  bg: 'border-amber-500/30',  prob: 70 },
+  { key: 'Fechamento',       label: 'Fechamento',       cor: 'text-orange-400', bg: 'border-orange-500/30', prob: 90 },
+  { key: 'Ganho',            label: 'Ganho',            cor: 'text-green-400',  bg: 'border-green-500/30',  prob: 100 },
+  { key: 'Perdido',          label: 'Perdido',          cor: 'text-red-400',    bg: 'border-red-500/30',    prob: 0 },
 ]
 
-const TEMP_BADGE: Record<Temperatura, { label: string; cor: string }> = {
-  frio: { label: 'FRIO', cor: 'bg-blue-900/50 text-blue-300 border-blue-700/50' },
-  morno: { label: 'MORNO', cor: 'bg-amber-900/50 text-amber-300 border-amber-700/50' },
-  quente: { label: 'QUENTE', cor: 'bg-red-900/50 text-red-300 border-red-700/50' },
-}
-
-const ORIGEM_ICON: Record<Origem, string> = {
-  whatsapp: '💬',
-  instagram: '📸',
-  google: '🔍',
-  indicacao: '🤝',
-  outro: '📌',
+const ORIGENS: Record<string, string> = {
+  whatsapp: '💬', instagram: '📸', google: '🔍', indicacao: '🤝', manual: '📌', outro: '📌',
 }
 
 function fmt(v: number): string {
@@ -66,100 +46,60 @@ function timeAgo(date: string): string {
 // ── Component ────────────────────────────────────────────────────────
 export default function OportunidadesPage() {
   const [oportunidades, setOportunidades] = useState<Oportunidade[]>([])
+  const [kpis, setKpis] = useState<OportunidadeKPIs>({
+    valor_bruto_pipeline: 0, forecast_ponderado: 0, taxa_conversao: 0,
+    total_ativas: 0, ganhas: 0, perdidas: 0,
+  })
   const [loading, setLoading] = useState(true)
   const [erro, setErro] = useState<string | null>(null)
   const [draggedId, setDraggedId] = useState<string | null>(null)
-  const [dragOverEtapa, setDragOverEtapa] = useState<EtapaOp | null>(null)
+  const [dragOverEstagio, setDragOverEstagio] = useState<Estagio | null>(null)
   const [modalAberto, setModalAberto] = useState(false)
   const [salvando, setSalvando] = useState(false)
   const [busca, setBusca] = useState('')
-  const [filtroTemp, setFiltroTemp] = useState<Temperatura | 'todos'>('todos')
 
   const [form, setForm] = useState({
-    nome: '',
-    telefone: '',
+    titulo: '',
+    valor: 0,
+    probabilidade: 20,
     procedimento: 'Implante',
-    valor_estimado: 0,
-    etapa: 'qualificacao' as EtapaOp,
-    temperatura: 'morno' as Temperatura,
-    origem: 'whatsapp' as Origem,
-    vendedor: '',
+    origem: 'whatsapp',
     observacoes: '',
   })
 
-  // ── Data Loading ────────────────────────────────────────────────────
+  // ── Data Loading via API ────────────────────────────────────────────
   const carregar = useCallback(async () => {
     setLoading(true)
     setErro(null)
-    const { data, error } = await supabase
-      .from('oportunidades')
-      .select('*')
-      .order('updated_at', { ascending: false })
-
-    if (error) {
-      if (error.code === '42P01') {
-        setErro('Tabela "oportunidades" nao existe ainda. Aguardando Agente 2 criar o banco.')
+    try {
+      const params = new URLSearchParams()
+      if (busca) params.set('busca', busca)
+      const res = await fetch(`/api/oportunidades?${params}`)
+      const json = await res.json()
+      if (json.erro) {
+        setErro(json.erro)
+        setOportunidades([])
       } else {
-        setErro(error.message)
+        setOportunidades(json.oportunidades || [])
+        if (json.kpis) setKpis(json.kpis)
       }
-      setOportunidades([])
-    } else {
-      setOportunidades((data ?? []) as Oportunidade[])
+    } catch {
+      setErro('Erro ao conectar com API')
     }
     setLoading(false)
-  }, [])
+  }, [busca])
 
-  useEffect(() => {
-    carregar()
-  }, [carregar])
+  useEffect(() => { carregar() }, [carregar])
 
-  // ── Realtime ────────────────────────────────────────────────────────
-  useEffect(() => {
-    const channel = supabase
-      .channel('oportunidades-realtime')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'oportunidades' }, () => {
-        carregar()
-      })
-      .subscribe()
-    return () => { supabase.removeChannel(channel) }
-  }, [carregar])
-
-  // ── Filtered Data ────────────────────────────────────────────────────
+  // ── Filtered by search (client-side for instant feedback) ────────────
   const filtradas = useMemo(() => {
-    let result = oportunidades
-    if (busca.trim()) {
-      const q = busca.toLowerCase()
-      result = result.filter(o =>
-        o.nome.toLowerCase().includes(q) ||
-        o.procedimento.toLowerCase().includes(q) ||
-        o.telefone.includes(q)
-      )
-    }
-    if (filtroTemp !== 'todos') {
-      result = result.filter(o => o.temperatura === filtroTemp)
-    }
-    return result
-  }, [oportunidades, busca, filtroTemp])
-
-  // ── KPIs ────────────────────────────────────────────────────────────
-  const kpis = useMemo(() => {
-    const ganhas = oportunidades.filter(o => o.etapa === 'ganho')
-    const perdidas = oportunidades.filter(o => o.etapa === 'perdido')
-    const ativas = oportunidades.filter(o => o.etapa !== 'ganho' && o.etapa !== 'perdido')
-    const pipeline = ativas.reduce((s, o) => s + Number(o.valor_estimado), 0)
-    const fechado = ganhas.reduce((s, o) => s + Number(o.valor_estimado), 0)
-    const taxaConversao = (ganhas.length + perdidas.length) > 0
-      ? (ganhas.length / (ganhas.length + perdidas.length) * 100)
-      : 0
-    return {
-      total: oportunidades.length,
-      ativas: ativas.length,
-      pipeline,
-      fechado,
-      taxaConversao,
-      quentes: oportunidades.filter(o => o.temperatura === 'quente' && o.etapa !== 'ganho' && o.etapa !== 'perdido').length,
-    }
-  }, [oportunidades])
+    if (!busca.trim()) return oportunidades
+    const q = busca.toLowerCase()
+    return oportunidades.filter(o =>
+      o.titulo?.toLowerCase().includes(q) ||
+      o.procedimento?.toLowerCase().includes(q)
+    )
+  }, [oportunidades, busca])
 
   // ── Drag & Drop ────────────────────────────────────────────────────
   function handleDragStart(e: DragEvent, id: string) {
@@ -168,71 +108,87 @@ export default function OportunidadesPage() {
     e.dataTransfer.setData('text/plain', id)
   }
 
-  function handleDragOver(e: DragEvent, etapa: EtapaOp) {
+  function handleDragOver(e: DragEvent, estagio: Estagio) {
     e.preventDefault()
     e.dataTransfer.dropEffect = 'move'
-    setDragOverEtapa(etapa)
+    setDragOverEstagio(estagio)
   }
 
   function handleDragLeave() {
-    setDragOverEtapa(null)
+    setDragOverEstagio(null)
   }
 
-  async function handleDrop(e: DragEvent, novaEtapa: EtapaOp) {
+  async function handleDrop(e: DragEvent, novoEstagio: Estagio) {
     e.preventDefault()
-    setDragOverEtapa(null)
+    setDragOverEstagio(null)
     if (!draggedId) return
 
     const op = oportunidades.find(o => o.id === draggedId)
-    if (!op || op.etapa === novaEtapa) {
+    if (!op || op.estagio === novoEstagio) {
       setDraggedId(null)
       return
     }
 
     // Optimistic update
     setOportunidades(prev =>
-      prev.map(o => o.id === draggedId ? { ...o, etapa: novaEtapa, updated_at: new Date().toISOString() } : o)
+      prev.map(o => o.id === draggedId ? { ...o, estagio: novoEstagio } : o)
     )
     setDraggedId(null)
 
-    const { error } = await supabase
-      .from('oportunidades')
-      .update({ etapa: novaEtapa, updated_at: new Date().toISOString() })
-      .eq('id', draggedId)
-
-    if (error) {
-      carregar() // Revert on error
+    try {
+      const res = await fetch(`/api/oportunidades/${draggedId}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ estagio: novoEstagio }),
+      })
+      const json = await res.json()
+      if (json.erro) {
+        carregar() // Revert
+      } else {
+        // Refresh KPIs
+        carregar()
+      }
+    } catch {
+      carregar()
     }
   }
 
   // ── Save ────────────────────────────────────────────────────────────
   async function salvar() {
-    if (!form.nome.trim() || form.valor_estimado <= 0) return
+    if (!form.titulo.trim() || form.valor <= 0) return
     setSalvando(true)
-    const now = new Date().toISOString()
-    const { error } = await supabase.from('oportunidades').insert({
-      nome: form.nome.trim(),
-      telefone: form.telefone.trim(),
-      procedimento: form.procedimento,
-      valor_estimado: form.valor_estimado,
-      etapa: form.etapa,
-      temperatura: form.temperatura,
-      origem: form.origem,
-      vendedor: form.vendedor.trim() || null,
-      observacoes: form.observacoes.trim() || null,
-      created_at: now,
-      updated_at: now,
-    })
-    setSalvando(false)
-    if (error) {
-      setErro(error.message)
-      return
+    try {
+      const res = await fetch('/api/oportunidades', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          titulo: form.titulo.trim(),
+          valor: form.valor,
+          probabilidade: form.probabilidade,
+          estagio: 'Qualificacao',
+          procedimento: form.procedimento,
+          origem: form.origem,
+          observacoes: form.observacoes.trim() || undefined,
+        }),
+      })
+      const json = await res.json()
+      if (json.erro) {
+        setErro(json.erro)
+      } else {
+        setModalAberto(false)
+        setForm({ titulo: '', valor: 0, probabilidade: 20, procedimento: 'Implante', origem: 'whatsapp', observacoes: '' })
+        carregar()
+      }
+    } catch {
+      setErro('Erro ao criar oportunidade')
     }
-    setModalAberto(false)
-    setForm({
-      nome: '', telefone: '', procedimento: 'Implante', valor_estimado: 0,
-      etapa: 'qualificacao', temperatura: 'morno', origem: 'whatsapp', vendedor: '', observacoes: '',
-    })
+    setSalvando(false)
+  }
+
+  // ── Delete ────────────────────────────────────────────────────────────
+  async function deletar(id: string) {
+    if (!confirm('Remover esta oportunidade?')) return
+    await fetch(`/api/oportunidades/${id}`, { method: 'DELETE' })
     carregar()
   }
 
@@ -245,95 +201,77 @@ export default function OportunidadesPage() {
         {/* Header */}
         <div className="flex items-center justify-between mb-6">
           <div>
-            <h1 className="text-white text-2xl font-bold flex items-center gap-2">
-              <span className="text-amber-500">&#9878;</span> Oportunidades
-            </h1>
+            <h1 className="text-white text-2xl font-bold">Oportunidades</h1>
             <p className="text-gray-400 text-sm mt-1">Pipeline de vendas com drag & drop</p>
           </div>
-          <button
-            onClick={() => setModalAberto(true)}
-            className="bg-amber-500 hover:bg-amber-400 text-gray-950 font-semibold px-5 py-2.5 rounded-lg transition text-sm"
-          >
-            + Nova Oportunidade
-          </button>
+          <div className="flex gap-3">
+            <button onClick={() => setModalAberto(true)}
+              className="bg-amber-500 hover:bg-amber-400 text-gray-950 font-semibold px-5 py-2.5 rounded-lg transition text-sm">
+              + Nova Oportunidade
+            </button>
+          </div>
         </div>
 
-        {/* KPIs */}
+        {/* KPIs — 6 cards baseados na API */}
         <div className="grid grid-cols-2 md:grid-cols-6 gap-3 mb-6">
-          <Kpi label="Total" valor={String(kpis.total)} cor="text-white" />
-          <Kpi label="Ativas" valor={String(kpis.ativas)} cor="text-amber-400" />
-          <Kpi label="Pipeline" valor={fmt(kpis.pipeline)} cor="text-blue-400" />
-          <Kpi label="Fechado" valor={fmt(kpis.fechado)} cor="text-green-400" />
-          <Kpi label="Conversao" valor={`${kpis.taxaConversao.toFixed(0)}%`} cor="text-amber-400" />
-          <Kpi label="Quentes" valor={String(kpis.quentes)} cor="text-red-400" />
+          <KpiCard label="Valor Bruto" valor={fmt(kpis.valor_bruto_pipeline)} cor="text-amber-400" />
+          <KpiCard label="Forecast" valor={fmt(kpis.forecast_ponderado)} cor="text-blue-400" />
+          <KpiCard label="Conversao" valor={`${kpis.taxa_conversao}%`} cor="text-green-400" />
+          <KpiCard label="Ativas" valor={String(kpis.total_ativas)} cor="text-white" />
+          <KpiCard label="Ganhas" valor={String(kpis.ganhas)} cor="text-green-400" />
+          <KpiCard label="Perdidas" valor={String(kpis.perdidas)} cor="text-red-400" />
         </div>
 
-        {/* Filters */}
-        <div className="flex gap-3 mb-6 items-center flex-wrap">
+        {/* Search */}
+        <div className="flex gap-3 mb-6 items-center">
           <input
             type="text"
             value={busca}
             onChange={e => setBusca(e.target.value)}
-            placeholder="Buscar nome, procedimento, telefone..."
-            className="bg-gray-900 border border-gray-800 rounded-lg px-4 py-2 text-white text-sm focus:outline-none focus:border-amber-500 w-72"
+            placeholder="Buscar por cliente, procedimento, vendedor..."
+            className="bg-gray-900 border border-gray-800 rounded-lg px-4 py-2 text-white text-sm focus:outline-none focus:border-amber-500 flex-1 max-w-md"
           />
-          <div className="flex gap-1.5">
-            {(['todos', 'frio', 'morno', 'quente'] as const).map(t => (
-              <button
-                key={t}
-                onClick={() => setFiltroTemp(t)}
-                className={`px-3 py-1.5 rounded-lg text-xs font-medium transition ${
-                  filtroTemp === t
-                    ? 'bg-amber-500 text-gray-950'
-                    : 'bg-gray-900 text-gray-400 hover:text-white border border-gray-800'
-                }`}
-              >
-                {t === 'todos' ? 'Todos' : t.charAt(0).toUpperCase() + t.slice(1)}
-              </button>
-            ))}
-          </div>
         </div>
 
         {erro && (
-          <div className="bg-red-900/30 border border-red-700/50 text-red-300 px-4 py-3 rounded-lg text-sm mb-4">
-            {erro}
-          </div>
+          <div className="bg-red-900/30 border border-red-700/50 text-red-300 px-4 py-3 rounded-lg text-sm mb-4">{erro}</div>
         )}
 
         {/* Kanban Board */}
         {loading ? (
-          <div className="text-center py-20 text-gray-500">Carregando oportunidades...</div>
+          <div className="text-center py-20 text-gray-500">Carregando pipeline...</div>
         ) : (
           <div className="grid grid-cols-6 gap-3 min-h-[60vh]">
-            {ETAPAS.map(etapa => {
-              const cards = filtradas.filter(o => o.etapa === etapa.key)
-              const valorTotal = cards.reduce((s, o) => s + Number(o.valor_estimado), 0)
-              const isOver = dragOverEtapa === etapa.key
+            {ESTAGIOS.map(estagio => {
+              const cards = filtradas.filter(o => o.estagio === estagio.key)
+              const valorTotal = cards.reduce((s, o) => s + Number(o.valor || 0), 0)
+              const isOver = dragOverEstagio === estagio.key
 
               return (
                 <div
-                  key={etapa.key}
-                  onDragOver={e => handleDragOver(e, etapa.key)}
+                  key={estagio.key}
+                  onDragOver={e => handleDragOver(e, estagio.key)}
                   onDragLeave={handleDragLeave}
-                  onDrop={e => handleDrop(e, etapa.key)}
-                  className={`bg-gray-900/50 border rounded-xl p-3 transition-all ${etapa.bg} ${
+                  onDrop={e => handleDrop(e, estagio.key)}
+                  className={`bg-gray-900/50 border rounded-xl p-3 transition-all ${estagio.bg} ${
                     isOver ? 'bg-amber-500/5 border-amber-500/50 scale-[1.01]' : ''
                   }`}
                 >
                   {/* Column Header */}
-                  <div className="flex items-center justify-between mb-3">
+                  <div className="flex items-center justify-between mb-2">
                     <div className="flex items-center gap-2">
-                      <span className={`text-xs font-bold uppercase tracking-wider ${etapa.cor}`}>
-                        {etapa.label}
+                      <span className={`text-[10px] font-bold uppercase tracking-wider ${estagio.cor}`}>
+                        {estagio.label}
                       </span>
                       <span className="text-[10px] bg-gray-800 text-gray-400 px-1.5 py-0.5 rounded-full font-semibold">
                         {cards.length}
                       </span>
                     </div>
                   </div>
-                  {valorTotal > 0 && (
-                    <p className="text-[10px] text-gray-500 mb-3 font-medium">{fmt(valorTotal)}</p>
-                  )}
+                  <div className="flex items-center justify-between mb-3">
+                    <p className="text-[10px] text-gray-500 font-medium">{fmt(valorTotal)}</p>
+                    <p className="text-[10px] text-gray-600">{estagio.prob}% prob.</p>
+                  </div>
 
                   {/* Cards */}
                   <div className="space-y-2 min-h-[200px]">
@@ -346,26 +284,46 @@ export default function OportunidadesPage() {
                           draggedId === op.id ? 'opacity-40 scale-95' : ''
                         }`}
                       >
-                        {/* Card Header */}
-                        <div className="flex items-start justify-between gap-1">
-                          <p className="text-white text-sm font-medium leading-tight">{op.nome}</p>
-                          <span className={`text-[9px] px-1.5 py-0.5 rounded-full font-bold border shrink-0 ${TEMP_BADGE[op.temperatura].cor}`}>
-                            {TEMP_BADGE[op.temperatura].label}
+                        {/* Avatar + Name */}
+                        <div className="flex items-start gap-2">
+                          <div className="w-8 h-8 rounded-lg bg-amber-500/10 border border-amber-500/20 flex items-center justify-center text-amber-400 font-bold text-xs shrink-0">
+                            {(op.titulo || '?').charAt(0).toUpperCase()}
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <p className="text-white text-sm font-medium leading-tight truncate">{op.titulo}</p>
+                            {op.procedimento && (
+                              <span className="inline-block mt-1 text-[9px] px-1.5 py-0.5 rounded bg-amber-500/10 text-amber-400 border border-amber-500/20 font-medium">
+                                {op.procedimento}
+                              </span>
+                            )}
+                          </div>
+                        </div>
+
+                        {/* Value + Probability */}
+                        <div className="flex items-center justify-between mt-2">
+                          <p className="text-amber-400 text-xs font-bold">{fmt(Number(op.valor || 0))}</p>
+                          <span className={`text-[9px] px-1.5 py-0.5 rounded-full font-bold ${
+                            op.probabilidade >= 70 ? 'bg-green-900/50 text-green-300 border border-green-700/50' :
+                            op.probabilidade >= 40 ? 'bg-amber-900/50 text-amber-300 border border-amber-700/50' :
+                            'bg-blue-900/50 text-blue-300 border border-blue-700/50'
+                          }`}>
+                            {op.probabilidade}%
                           </span>
                         </div>
 
-                        {/* Procedure + Value */}
-                        <p className="text-amber-400 text-xs mt-1.5 font-medium">{fmt(Number(op.valor_estimado))}</p>
-                        <p className="text-gray-500 text-[11px] mt-0.5">{op.procedimento}</p>
-
-                        {/* Meta row */}
+                        {/* Meta */}
                         <div className="flex items-center gap-2 mt-2 text-[10px] text-gray-500">
-                          <span>{ORIGEM_ICON[op.origem]} {op.origem}</span>
-                          {op.vendedor && <span>| {op.vendedor}</span>}
+                          <span>{ORIGENS[op.origem] || '📌'} {op.origem}</span>
+                          <span>{timeAgo(op.created_at)}</span>
                         </div>
 
-                        {/* Time */}
-                        <p className="text-[10px] text-gray-600 mt-1">{timeAgo(op.updated_at)} atras</p>
+                        {/* Delete on hover */}
+                        <button
+                          onClick={e => { e.stopPropagation(); deletar(op.id) }}
+                          className="mt-2 w-full opacity-0 group-hover:opacity-100 bg-red-500/10 hover:bg-red-500 text-red-400 hover:text-white border border-red-500/30 rounded px-2 py-1 text-[10px] font-medium transition"
+                        >
+                          Remover
+                        </button>
                       </div>
                     ))}
                   </div>
@@ -376,115 +334,66 @@ export default function OportunidadesPage() {
         )}
       </div>
 
-      {/* Modal Nova Oportunidade */}
+      {/* Modal */}
       {modalAberto && (
         <div className="fixed inset-0 bg-black/70 z-50 flex items-center justify-center p-4" onClick={e => e.target === e.currentTarget && setModalAberto(false)}>
-          <div className="bg-gray-900 border border-gray-800 rounded-2xl p-6 max-w-xl w-full max-h-[90vh] overflow-y-auto">
+          <div className="bg-gray-900 border border-gray-800 rounded-2xl p-6 max-w-lg w-full max-h-[90vh] overflow-y-auto">
             <h2 className="text-white font-bold text-lg mb-5">Nova Oportunidade</h2>
-
-            <div className="grid grid-cols-2 gap-4">
-              <div className="col-span-2">
-                <label className="text-gray-400 text-xs mb-1.5 block font-medium">Nome *</label>
-                <input
-                  type="text"
-                  value={form.nome}
-                  onChange={e => setForm({ ...form, nome: e.target.value })}
-                  placeholder="Nome do lead/paciente"
-                  className="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-white text-sm focus:outline-none focus:border-amber-500"
-                />
+            <div className="space-y-4">
+              <div>
+                <label className="text-gray-400 text-xs mb-1.5 block font-medium">Titulo / Cliente *</label>
+                <input type="text" value={form.titulo} onChange={e => setForm({ ...form, titulo: e.target.value })}
+                  placeholder="Nome do lead ou oportunidade"
+                  className="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-white text-sm focus:outline-none focus:border-amber-500" />
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="text-gray-400 text-xs mb-1.5 block font-medium">Valor (R$) *</label>
+                  <input type="number" step="0.01" value={form.valor || ''} onChange={e => setForm({ ...form, valor: Number(e.target.value) })}
+                    className="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-white text-sm focus:outline-none focus:border-amber-500" />
+                </div>
+                <div>
+                  <label className="text-gray-400 text-xs mb-1.5 block font-medium">Probabilidade (%)</label>
+                  <input type="number" min="0" max="100" value={form.probabilidade} onChange={e => setForm({ ...form, probabilidade: Number(e.target.value) })}
+                    className="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-white text-sm focus:outline-none focus:border-amber-500" />
+                </div>
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="text-gray-400 text-xs mb-1.5 block font-medium">Procedimento</label>
+                  <select value={form.procedimento} onChange={e => setForm({ ...form, procedimento: e.target.value })}
+                    className="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-white text-sm focus:outline-none focus:border-amber-500">
+                    {['Implante', 'Protocolo', 'Protese', 'Lente', 'Clareamento', 'Harmonizacao', 'Botox', 'Ortodontia', 'Estetica', 'Outro'].map(p =>
+                      <option key={p}>{p}</option>
+                    )}
+                  </select>
+                </div>
+                <div>
+                  <label className="text-gray-400 text-xs mb-1.5 block font-medium">Origem</label>
+                  <select value={form.origem} onChange={e => setForm({ ...form, origem: e.target.value })}
+                    className="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-white text-sm focus:outline-none focus:border-amber-500">
+                    <option value="whatsapp">WhatsApp</option>
+                    <option value="instagram">Instagram</option>
+                    <option value="google">Google</option>
+                    <option value="indicacao">Indicacao</option>
+                    <option value="manual">Manual</option>
+                  </select>
+                </div>
               </div>
               <div>
-                <label className="text-gray-400 text-xs mb-1.5 block font-medium">Telefone</label>
-                <input
-                  type="text"
-                  value={form.telefone}
-                  onChange={e => setForm({ ...form, telefone: e.target.value })}
-                  placeholder="48999001122"
-                  className="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-white text-sm focus:outline-none focus:border-amber-500"
-                />
-              </div>
-              <div>
-                <label className="text-gray-400 text-xs mb-1.5 block font-medium">Valor Estimado (R$) *</label>
-                <input
-                  type="number"
-                  step="0.01"
-                  value={form.valor_estimado || ''}
-                  onChange={e => setForm({ ...form, valor_estimado: Number(e.target.value) })}
-                  className="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-white text-sm focus:outline-none focus:border-amber-500"
-                />
-              </div>
-              <div>
-                <label className="text-gray-400 text-xs mb-1.5 block font-medium">Procedimento</label>
-                <select
-                  value={form.procedimento}
-                  onChange={e => setForm({ ...form, procedimento: e.target.value })}
-                  className="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-white text-sm focus:outline-none focus:border-amber-500"
-                >
-                  {['Implante', 'Protocolo', 'Protese', 'Estetica', 'Lente', 'Clareamento', 'Outro'].map(p => <option key={p}>{p}</option>)}
-                </select>
-              </div>
-              <div>
-                <label className="text-gray-400 text-xs mb-1.5 block font-medium">Temperatura</label>
-                <select
-                  value={form.temperatura}
-                  onChange={e => setForm({ ...form, temperatura: e.target.value as Temperatura })}
-                  className="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-white text-sm focus:outline-none focus:border-amber-500"
-                >
-                  <option value="frio">Frio</option>
-                  <option value="morno">Morno</option>
-                  <option value="quente">Quente</option>
-                </select>
-              </div>
-              <div>
-                <label className="text-gray-400 text-xs mb-1.5 block font-medium">Origem</label>
-                <select
-                  value={form.origem}
-                  onChange={e => setForm({ ...form, origem: e.target.value as Origem })}
-                  className="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-white text-sm focus:outline-none focus:border-amber-500"
-                >
-                  <option value="whatsapp">WhatsApp</option>
-                  <option value="instagram">Instagram</option>
-                  <option value="google">Google</option>
-                  <option value="indicacao">Indicacao</option>
-                  <option value="outro">Outro</option>
-                </select>
-              </div>
-              <div>
-                <label className="text-gray-400 text-xs mb-1.5 block font-medium">Vendedor</label>
-                <input
-                  type="text"
-                  value={form.vendedor}
-                  onChange={e => setForm({ ...form, vendedor: e.target.value })}
-                  placeholder="Nome do vendedor"
-                  className="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-white text-sm focus:outline-none focus:border-amber-500"
-                />
-              </div>
-              <div className="col-span-2">
                 <label className="text-gray-400 text-xs mb-1.5 block font-medium">Observacoes</label>
-                <textarea
-                  value={form.observacoes}
-                  onChange={e => setForm({ ...form, observacoes: e.target.value })}
-                  placeholder="Notas sobre a oportunidade..."
-                  rows={3}
-                  className="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-white text-sm focus:outline-none focus:border-amber-500 resize-none"
-                />
+                <textarea value={form.observacoes} onChange={e => setForm({ ...form, observacoes: e.target.value })}
+                  rows={3} placeholder="Notas sobre a oportunidade..."
+                  className="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-white text-sm focus:outline-none focus:border-amber-500 resize-none" />
               </div>
             </div>
-
             <div className="flex gap-3 mt-6">
-              <button
-                onClick={salvar}
-                disabled={salvando || !form.nome.trim() || form.valor_estimado <= 0}
-                className="flex-1 bg-amber-500 hover:bg-amber-400 disabled:opacity-40 text-gray-950 font-semibold px-5 py-2.5 rounded-lg transition text-sm"
-              >
+              <button onClick={salvar} disabled={salvando || !form.titulo.trim() || form.valor <= 0}
+                className="flex-1 bg-amber-500 hover:bg-amber-400 disabled:opacity-40 text-gray-950 font-semibold px-5 py-2.5 rounded-lg transition text-sm">
                 {salvando ? 'Salvando...' : 'Criar Oportunidade'}
               </button>
-              <button
-                onClick={() => setModalAberto(false)}
-                className="bg-gray-800 hover:bg-gray-700 text-gray-300 px-5 py-2.5 rounded-lg transition text-sm"
-              >
-                Cancelar
-              </button>
+              <button onClick={() => setModalAberto(false)}
+                className="bg-gray-800 hover:bg-gray-700 text-gray-300 px-5 py-2.5 rounded-lg transition text-sm">Cancelar</button>
             </div>
           </div>
         </div>
@@ -493,12 +402,11 @@ export default function OportunidadesPage() {
   )
 }
 
-// ── Sub-components ────────────────────────────────────────────────────
-function Kpi({ label, valor, cor }: { label: string; valor: string; cor: string }) {
+function KpiCard({ label, valor, cor }: { label: string; valor: string; cor: string }) {
   return (
-    <div className="bg-gray-900 border border-gray-800 rounded-xl p-3">
+    <div className="bg-gray-900 border border-gray-800 rounded-xl p-4">
       <p className="text-[10px] uppercase tracking-wider text-gray-500 font-medium">{label}</p>
-      <p className={`text-base font-bold mt-1 ${cor}`}>{valor}</p>
+      <p className={`text-lg font-bold mt-1 ${cor}`}>{valor}</p>
     </div>
   )
 }
