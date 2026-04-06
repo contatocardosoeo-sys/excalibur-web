@@ -19,7 +19,18 @@
       "Read(//c/Users/conta/.claude/**)",
       "Bash(python3 -m json.tool)",
       "Bash(python3:*)",
-      "Bash(npx @playwright/mcp@latest --help)"
+      "Bash(npx @playwright/mcp@latest --help)",
+      "Bash(git push:*)",
+      "Bash(git add:*)",
+      "Bash(git commit -m ':*)",
+      "Bash(git config:*)",
+      "Bash(cmdkey /delete:git:https://github.com)",
+      "Bash(cmdkey /list)",
+      "Bash(printf \"protocol=https\\\\nhost=github.com\\\\n\")",
+      "Bash(git credential:*)",
+      "Bash(printf \"protocol=https\\\\nhost=github.com\\\\n\\\\n\")",
+      "Bash(gh auth:*)",
+      "Bash(tasklist)"
     ]
   }
 }

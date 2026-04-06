@@ -32,7 +32,7 @@ export default function Dashboard() {
   useEffect(() => {
     async function carregar() {
       const [l, p] = await Promise.all([
-        supabase.from('leads').select('*'),
+        supabase.from('leads').select('id,nome,telefone,procedimento,etapa,created_at'),
         supabase.from('propostas').select('id,valor_total,status'),
       ])
       if (l.data) setLeads(l.data)

@@ -6,8 +6,10 @@
         "/c",
         "npx",
         "@playwright/mcp@latest",
-        "--cdp-endpoint",
-        "http://localhost:9222"
+        "--user-data-dir",
+        "C:\\Users\\conta\\AppData\\Local\\Google\\Chrome\\User Data",
+        "--profile-directory",
+        "Default"
       ]
     }
   }

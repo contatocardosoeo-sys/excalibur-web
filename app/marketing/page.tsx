@@ -18,7 +18,7 @@ export default function MarketingPage() {
   const [investMes, setInvestMes] = useState(5000)
 
   useEffect(() => {
-    supabase.from('leads').select('*').then(({ data }) => {
+    supabase.from('leads').select('id,nome,procedimento,etapa,created_at').then(({ data }) => {
       setLeads((data ?? []) as Lead[])
       setLoading(false)
     })
