@@ -23,6 +23,8 @@ export const NAV_WEB = [
     items: [
       { label: 'BI & Metricas', href: '/bi', icon: '📈' },
       { label: 'Marketing', href: '/marketing', icon: '📣' },
+      { label: 'Jornada D0-D90', href: '/jornada', icon: '🗺️' },
+      { label: 'Health Score', href: '/adocao', icon: '💪' },
     ]
   },
   {

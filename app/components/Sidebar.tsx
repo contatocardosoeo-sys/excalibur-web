@@ -37,6 +37,8 @@ const sections = [
     items: [
       { href: '/bi', icon: '📊', label: 'BI & Analise' },
       { href: '/marketing', icon: '📈', label: 'Marketing' },
+      { href: '/jornada', icon: '🗺️', label: 'Jornada D0-D90' },
+      { href: '/adocao', icon: '💪', label: 'Health Score' },
     ],
   },
   {
