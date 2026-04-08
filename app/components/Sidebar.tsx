@@ -46,6 +46,7 @@ const sections = [
     items: [
       { href: '/academia', icon: '🎓', label: 'Academia' },
       { href: '/extensao', icon: '🔌', label: 'Extensao CRC' },
+      { href: '/integracoes', icon: '🔗', label: 'Integracoes' },
     ],
   },
 ]
