@@ -1,0 +1,66 @@
+{
+  "name": "⚔️ 6 — Régua Cobrança Asaas",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "asaas-webhook",
+        "options": {}
+      },
+      "id": "e1b2c3d4-0005-0005-0005-000000000001",
+      "name": "Webhook Asaas",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [0, 0],
+      "webhookId": "asaas-webhook"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "conditions": [
+            { "leftValue": "={{ $json.body.event }}", "rightValue": "PAYMENT_OVERDUE", "operator": { "type": "string", "operation": "equals" } }
+          ],
+          "combinator": "and"
+        }
+      },
+      "id": "e1b2c3d4-0005-0005-0005-000000000002",
+      "name": "Pagamento Atrasado?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [220, 0]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://excalibur-app.vercel.app/api/webhooks/n8n",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"tipo\": \"lead_nao_atendido\",\n  \"clinica_id\": \"{{ $json.body.payment.externalReference }}\",\n  \"dados\": {\n    \"nome\": \"{{ $json.body.payment.customer }}\",\n    \"valor\": {{ $json.body.payment.value || 0 }},\n    \"vencimento\": \"{{ $json.body.payment.dueDate }}\"\n  }\n}"
+      },
+      "id": "e1b2c3d4-0005-0005-0005-000000000003",
+      "name": "Alerta Pagamento Atrasado",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [440, -100]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://excalibur-app.vercel.app/api/webhooks/n8n",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"tipo\": \"lead_novo\",\n  \"clinica_id\": \"{{ $json.body.payment.externalReference }}\",\n  \"dados\": {\n    \"nome\": \"{{ $json.body.payment.customer }}\",\n    \"evento\": \"{{ $json.body.event }}\",\n    \"valor\": {{ $json.body.payment.value || 0 }}\n  }\n}"
+      },
+      "id": "e1b2c3d4-0005-0005-0005-000000000004",
+      "name": "Log Outros Eventos",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [440, 100]
+    }
+  ],
+  "connections": {
+    "Webhook Asaas": { "main": [[{ "node": "Pagamento Atrasado?", "type": "main", "index": 0 }]] },
+    "Pagamento Atrasado?": { "main": [[{ "node": "Alerta Pagamento Atrasado", "type": "main", "index": 0 }], [{ "node": "Log Outros Eventos", "type": "main", "index": 0 }]] }
+  },
+  "settings": { "executionOrder": "v1" }
+}

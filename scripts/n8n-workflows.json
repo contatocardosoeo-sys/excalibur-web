@@ -1,0 +1,395 @@
+[
+  {
+    "name": "⚔️ 1 — Alerta Lead Sem Resposta (24h)",
+    "nodes": [
+      {
+        "parameters": { "rule": { "interval": [{ "field": "hours", "hoursInterval": 1 }] } },
+        "id": "schedule-1",
+        "name": "Schedule Trigger",
+        "type": "n8n-nodes-base.scheduleTrigger",
+        "typeVersion": 1.2,
+        "position": [0, 0]
+      },
+      {
+        "parameters": {
+          "method": "POST",
+          "url": "https://hluhlsnodndpskrkbjuw.supabase.co/rest/v1/rpc/leads_sem_resposta_24h",
+          "authentication": "genericCredentialType",
+          "genericAuthType": "httpHeaderAuth",
+          "sendHeaders": true,
+          "headerParameters": {
+            "parameters": [
+              { "name": "apikey", "value": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImhsdWhsc25vZG5kcHNrcmtianV3Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzUzNTA4NzAsImV4cCI6MjA5MDkyNjg3MH0.2JLmJCBP3sFnHNIAA6eDKm_f-N8WMGobRFUxn1VaNWQ" },
+              { "name": "Authorization", "value": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImhsdWhsc25vZG5kcHNrcmtianV3Iiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc3NTM1MDg3MCwiZXhwIjoyMDkwOTI2ODcwfQ.3gbnB8elQR1f1FOn5hshpF5Vdn4ZEureW3QHQmrws_o" }
+            ]
+          },
+          "sendBody": true,
+          "specifyBody": "json",
+          "jsonBody": "={}"
+        },
+        "id": "http-query-1",
+        "name": "Query Leads Sem Resposta",
+        "type": "n8n-nodes-base.httpRequest",
+        "typeVersion": 4.2,
+        "position": [220, 0]
+      },
+      {
+        "parameters": {
+          "conditions": {
+            "options": { "caseSensitive": true, "leftValue": "" },
+            "conditions": [
+              { "leftValue": "={{ $json.length }}", "rightValue": 0, "operator": { "type": "number", "operation": "gt" } }
+            ],
+            "combinator": "and"
+          }
+        },
+        "id": "if-1",
+        "name": "Tem Leads?",
+        "type": "n8n-nodes-base.if",
+        "typeVersion": 2.2,
+        "position": [440, 0]
+      },
+      {
+        "parameters": {
+          "method": "POST",
+          "url": "https://excalibur-app.vercel.app/api/webhooks/n8n",
+          "sendBody": true,
+          "specifyBody": "json",
+          "jsonBody": "={\n  \"tipo\": \"lead_sem_resposta\",\n  \"clinica_id\": \"{{ $json.clinica_id }}\",\n  \"lead_id\": \"{{ $json.id }}\",\n  \"dados\": {\n    \"nome\": \"{{ $json.nome }}\",\n    \"telefone\": \"{{ $json.telefone }}\",\n    \"score_atual\": {{ $json.lead_score || 50 }}\n  }\n}"
+        },
+        "id": "http-alert-1",
+        "name": "Disparar Alerta App",
+        "type": "n8n-nodes-base.httpRequest",
+        "typeVersion": 4.2,
+        "position": [660, -100]
+      }
+    ],
+    "connections": {
+      "Schedule Trigger": { "main": [[{ "node": "Query Leads Sem Resposta", "type": "main", "index": 0 }]] },
+      "Query Leads Sem Resposta": { "main": [[{ "node": "Tem Leads?", "type": "main", "index": 0 }]] },
+      "Tem Leads?": { "main": [[{ "node": "Disparar Alerta App", "type": "main", "index": 0 }], []] }
+    },
+    "settings": { "executionOrder": "v1" },
+    "active": false
+  },
+  {
+    "name": "⚔️ 2 — Confirmação Agendamento D-1",
+    "nodes": [
+      {
+        "parameters": { "rule": { "interval": [{ "field": "cronExpression", "expression": "0 9 * * *" }] } },
+        "id": "schedule-2",
+        "name": "Todo dia 9h",
+        "type": "n8n-nodes-base.scheduleTrigger",
+        "typeVersion": 1.2,
+        "position": [0, 0]
+      },
+      {
+        "parameters": {
+          "method": "GET",
+          "url": "=https://hluhlsnodndpskrkbjuw.supabase.co/rest/v1/agendamentos?data=eq.{{ $now.plus(1, 'day').toFormat('yyyy-MM-dd') }}&status=eq.agendado",
+          "authentication": "genericCredentialType",
+          "genericAuthType": "httpHeaderAuth",
+          "sendHeaders": true,
+          "headerParameters": {
+            "parameters": [
+              { "name": "apikey", "value": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImhsdWhsc25vZG5kcHNrcmtianV3Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzUzNTA4NzAsImV4cCI6MjA5MDkyNjg3MH0.2JLmJCBP3sFnHNIAA6eDKm_f-N8WMGobRFUxn1VaNWQ" },
+              { "name": "Authorization", "value": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImhsdWhsc25vZG5kcHNrcmtianV3Iiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc3NTM1MDg3MCwiZXhwIjoyMDkwOTI2ODcwfQ.3gbnB8elQR1f1FOn5hshpF5Vdn4ZEureW3QHQmrws_o" }
+            ]
+          }
+        },
+        "id": "http-query-2",
+        "name": "Buscar Agendamentos Amanhã",
+        "type": "n8n-nodes-base.httpRequest",
+        "typeVersion": 4.2,
+        "position": [220, 0]
+      },
+      {
+        "parameters": {
+          "conditions": {
+            "conditions": [
+              { "leftValue": "={{ $json.length }}", "rightValue": 0, "operator": { "type": "number", "operation": "gt" } }
+            ],
+            "combinator": "and"
+          }
+        },
+        "id": "if-2",
+        "name": "Tem Agendamentos?",
+        "type": "n8n-nodes-base.if",
+        "typeVersion": 2.2,
+        "position": [440, 0]
+      },
+      {
+        "parameters": { "fieldToSplitOut": "=" },
+        "id": "split-2",
+        "name": "Split Items",
+        "type": "n8n-nodes-base.splitOut",
+        "typeVersion": 1,
+        "position": [660, -100]
+      },
+      {
+        "parameters": {
+          "method": "POST",
+          "url": "https://excalibur-app.vercel.app/api/webhooks/n8n",
+          "sendBody": true,
+          "specifyBody": "json",
+          "jsonBody": "={\n  \"tipo\": \"agendamento_confirmar\",\n  \"clinica_id\": \"{{ $json.clinica_id }}\",\n  \"agendamento_id\": \"{{ $json.id }}\",\n  \"dados\": {\n    \"paciente_nome\": \"{{ $json.paciente_nome }}\",\n    \"data\": \"{{ $json.data }}\",\n    \"hora\": \"{{ $json.hora }}\"\n  }\n}"
+        },
+        "id": "http-alert-2",
+        "name": "Enviar Confirmação",
+        "type": "n8n-nodes-base.httpRequest",
+        "typeVersion": 4.2,
+        "position": [880, -100]
+      }
+    ],
+    "connections": {
+      "Todo dia 9h": { "main": [[{ "node": "Buscar Agendamentos Amanhã", "type": "main", "index": 0 }]] },
+      "Buscar Agendamentos Amanhã": { "main": [[{ "node": "Tem Agendamentos?", "type": "main", "index": 0 }]] },
+      "Tem Agendamentos?": { "main": [[{ "node": "Split Items", "type": "main", "index": 0 }], []] },
+      "Split Items": { "main": [[{ "node": "Enviar Confirmação", "type": "main", "index": 0 }]] }
+    },
+    "settings": { "executionOrder": "v1" },
+    "active": false
+  },
+  {
+    "name": "⚔️ 3 — Follow-up Lead D+1",
+    "nodes": [
+      {
+        "parameters": { "rule": { "interval": [{ "field": "cronExpression", "expression": "0 10 * * *" }] } },
+        "id": "schedule-3",
+        "name": "Todo dia 10h",
+        "type": "n8n-nodes-base.scheduleTrigger",
+        "typeVersion": 1.2,
+        "position": [0, 0]
+      },
+      {
+        "parameters": {
+          "method": "GET",
+          "url": "=https://hluhlsnodndpskrkbjuw.supabase.co/rest/v1/leads?etapa=eq.Recebido&created_at=lt.{{ $now.minus(1, 'day').toISO() }}&select=*",
+          "authentication": "genericCredentialType",
+          "genericAuthType": "httpHeaderAuth",
+          "sendHeaders": true,
+          "headerParameters": {
+            "parameters": [
+              { "name": "apikey", "value": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImhsdWhsc25vZG5kcHNrcmtianV3Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzUzNTA4NzAsImV4cCI6MjA5MDkyNjg3MH0.2JLmJCBP3sFnHNIAA6eDKm_f-N8WMGobRFUxn1VaNWQ" },
+              { "name": "Authorization", "value": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImhsdWhsc25vZG5kcHNrcmtianV3Iiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc3NTM1MDg3MCwiZXhwIjoyMDkwOTI2ODcwfQ.3gbnB8elQR1f1FOn5hshpF5Vdn4ZEureW3QHQmrws_o" }
+            ]
+          }
+        },
+        "id": "http-query-3",
+        "name": "Leads Sem Contato D+1",
+        "type": "n8n-nodes-base.httpRequest",
+        "typeVersion": 4.2,
+        "position": [220, 0]
+      },
+      {
+        "parameters": {
+          "conditions": {
+            "conditions": [
+              { "leftValue": "={{ $json.length }}", "rightValue": 0, "operator": { "type": "number", "operation": "gt" } }
+            ],
+            "combinator": "and"
+          }
+        },
+        "id": "if-3",
+        "name": "Tem Leads?",
+        "type": "n8n-nodes-base.if",
+        "typeVersion": 2.2,
+        "position": [440, 0]
+      },
+      {
+        "parameters": {
+          "method": "POST",
+          "url": "https://excalibur-app.vercel.app/api/webhooks/n8n",
+          "sendBody": true,
+          "specifyBody": "json",
+          "jsonBody": "={\n  \"tipo\": \"lead_novo\",\n  \"clinica_id\": \"{{ $json.clinica_id }}\",\n  \"lead_id\": \"{{ $json.id }}\",\n  \"dados\": {\n    \"nome\": \"{{ $json.nome }}\",\n    \"origem\": \"{{ $json.origem }}\"\n  }\n}"
+        },
+        "id": "http-followup-3",
+        "name": "Disparar Follow-up",
+        "type": "n8n-nodes-base.httpRequest",
+        "typeVersion": 4.2,
+        "position": [660, -100]
+      }
+    ],
+    "connections": {
+      "Todo dia 10h": { "main": [[{ "node": "Leads Sem Contato D+1", "type": "main", "index": 0 }]] },
+      "Leads Sem Contato D+1": { "main": [[{ "node": "Tem Leads?", "type": "main", "index": 0 }]] },
+      "Tem Leads?": { "main": [[{ "node": "Disparar Follow-up", "type": "main", "index": 0 }], []] }
+    },
+    "settings": { "executionOrder": "v1" },
+    "active": false
+  },
+  {
+    "name": "⚔️ 4 — Proposta Expirada (7 dias)",
+    "nodes": [
+      {
+        "parameters": { "rule": { "interval": [{ "field": "cronExpression", "expression": "0 8 * * *" }] } },
+        "id": "schedule-4",
+        "name": "Todo dia 8h",
+        "type": "n8n-nodes-base.scheduleTrigger",
+        "typeVersion": 1.2,
+        "position": [0, 0]
+      },
+      {
+        "parameters": {
+          "method": "GET",
+          "url": "=https://hluhlsnodndpskrkbjuw.supabase.co/rest/v1/propostas?status=eq.pendente&created_at=lt.{{ $now.minus(7, 'days').toISO() }}&select=*",
+          "authentication": "genericCredentialType",
+          "genericAuthType": "httpHeaderAuth",
+          "sendHeaders": true,
+          "headerParameters": {
+            "parameters": [
+              { "name": "apikey", "value": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImhsdWhsc25vZG5kcHNrcmtianV3Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzUzNTA4NzAsImV4cCI6MjA5MDkyNjg3MH0.2JLmJCBP3sFnHNIAA6eDKm_f-N8WMGobRFUxn1VaNWQ" },
+              { "name": "Authorization", "value": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImhsdWhsc25vZG5kcHNrcmtianV3Iiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc3NTM1MDg3MCwiZXhwIjoyMDkwOTI2ODcwfQ.3gbnB8elQR1f1FOn5hshpF5Vdn4ZEureW3QHQmrws_o" }
+            ]
+          }
+        },
+        "id": "http-query-4",
+        "name": "Propostas Pendentes +7d",
+        "type": "n8n-nodes-base.httpRequest",
+        "typeVersion": 4.2,
+        "position": [220, 0]
+      },
+      {
+        "parameters": {
+          "conditions": {
+            "conditions": [
+              { "leftValue": "={{ $json.length }}", "rightValue": 0, "operator": { "type": "number", "operation": "gt" } }
+            ],
+            "combinator": "and"
+          }
+        },
+        "id": "if-4",
+        "name": "Tem Propostas?",
+        "type": "n8n-nodes-base.if",
+        "typeVersion": 2.2,
+        "position": [440, 0]
+      },
+      {
+        "parameters": {
+          "method": "POST",
+          "url": "https://excalibur-app.vercel.app/api/webhooks/n8n",
+          "sendBody": true,
+          "specifyBody": "json",
+          "jsonBody": "={\n  \"tipo\": \"proposta_expirada\",\n  \"clinica_id\": \"{{ $json.clinica_id }}\",\n  \"proposta_id\": \"{{ $json.id }}\",\n  \"dados\": {\n    \"paciente_nome\": \"{{ $json.paciente_nome }}\",\n    \"valor_total\": {{ $json.valor_total || 0 }}\n  }\n}"
+        },
+        "id": "http-expirar-4",
+        "name": "Marcar Expirada",
+        "type": "n8n-nodes-base.httpRequest",
+        "typeVersion": 4.2,
+        "position": [660, -100]
+      }
+    ],
+    "connections": {
+      "Todo dia 8h": { "main": [[{ "node": "Propostas Pendentes +7d", "type": "main", "index": 0 }]] },
+      "Propostas Pendentes +7d": { "main": [[{ "node": "Tem Propostas?", "type": "main", "index": 0 }]] },
+      "Tem Propostas?": { "main": [[{ "node": "Marcar Expirada", "type": "main", "index": 0 }], []] }
+    },
+    "settings": { "executionOrder": "v1" },
+    "active": false
+  },
+  {
+    "name": "⚔️ 5 — Jornada Pós-Venda D0-D90",
+    "nodes": [
+      {
+        "parameters": {
+          "httpMethod": "POST",
+          "path": "pos-venda-trigger",
+          "options": {}
+        },
+        "id": "webhook-5",
+        "name": "Webhook Pós-Venda",
+        "type": "n8n-nodes-base.webhook",
+        "typeVersion": 2,
+        "position": [0, 0],
+        "webhookId": "pos-venda-trigger"
+      },
+      {
+        "parameters": {
+          "method": "POST",
+          "url": "https://excalibur-app.vercel.app/api/webhooks/n8n",
+          "sendBody": true,
+          "specifyBody": "json",
+          "jsonBody": "={\n  \"tipo\": \"paciente_retorno\",\n  \"clinica_id\": \"{{ $json.body.clinica_id }}\",\n  \"paciente_id\": \"{{ $json.body.paciente_id }}\",\n  \"dados\": {\n    \"paciente_nome\": \"{{ $json.body.paciente_nome }}\",\n    \"etapa_posvenda\": \"{{ $json.body.etapa }}\"\n  }\n}"
+        },
+        "id": "http-posvenda-5",
+        "name": "Criar Alerta Pós-Venda",
+        "type": "n8n-nodes-base.httpRequest",
+        "typeVersion": 4.2,
+        "position": [220, 0]
+      }
+    ],
+    "connections": {
+      "Webhook Pós-Venda": { "main": [[{ "node": "Criar Alerta Pós-Venda", "type": "main", "index": 0 }]] }
+    },
+    "settings": { "executionOrder": "v1" },
+    "active": false
+  },
+  {
+    "name": "⚔️ 6 — Régua Cobrança Asaas",
+    "nodes": [
+      {
+        "parameters": {
+          "httpMethod": "POST",
+          "path": "asaas-webhook",
+          "options": {}
+        },
+        "id": "webhook-6",
+        "name": "Webhook Asaas",
+        "type": "n8n-nodes-base.webhook",
+        "typeVersion": 2,
+        "position": [0, 0],
+        "webhookId": "asaas-webhook"
+      },
+      {
+        "parameters": {
+          "conditions": {
+            "conditions": [
+              { "leftValue": "={{ $json.body.event }}", "rightValue": "PAYMENT_OVERDUE", "operator": { "type": "string", "operation": "equals" } }
+            ],
+            "combinator": "and"
+          }
+        },
+        "id": "if-overdue-6",
+        "name": "Pagamento Atrasado?",
+        "type": "n8n-nodes-base.if",
+        "typeVersion": 2.2,
+        "position": [220, 0]
+      },
+      {
+        "parameters": {
+          "method": "POST",
+          "url": "https://excalibur-app.vercel.app/api/webhooks/n8n",
+          "sendBody": true,
+          "specifyBody": "json",
+          "jsonBody": "={\n  \"tipo\": \"lead_nao_atendido\",\n  \"clinica_id\": \"{{ $json.body.payment.externalReference }}\",\n  \"dados\": {\n    \"nome\": \"{{ $json.body.payment.customer }}\",\n    \"valor\": {{ $json.body.payment.value || 0 }},\n    \"vencimento\": \"{{ $json.body.payment.dueDate }}\"\n  }\n}"
+        },
+        "id": "http-alerta-6",
+        "name": "Alerta Pagamento Atrasado",
+        "type": "n8n-nodes-base.httpRequest",
+        "typeVersion": 4.2,
+        "position": [440, -100]
+      },
+      {
+        "parameters": {
+          "method": "POST",
+          "url": "https://excalibur-app.vercel.app/api/webhooks/n8n",
+          "sendBody": true,
+          "specifyBody": "json",
+          "jsonBody": "={\n  \"tipo\": \"lead_novo\",\n  \"clinica_id\": \"{{ $json.body.payment.externalReference }}\",\n  \"dados\": {\n    \"nome\": \"{{ $json.body.payment.customer }}\",\n    \"evento\": \"{{ $json.body.event }}\",\n    \"valor\": {{ $json.body.payment.value || 0 }}\n  }\n}"
+        },
+        "id": "http-log-6",
+        "name": "Log Outros Eventos",
+        "type": "n8n-nodes-base.httpRequest",
+        "typeVersion": 4.2,
+        "position": [440, 100]
+      }
+    ],
+    "connections": {
+      "Webhook Asaas": { "main": [[{ "node": "Pagamento Atrasado?", "type": "main", "index": 0 }]] },
+      "Pagamento Atrasado?": { "main": [[{ "node": "Alerta Pagamento Atrasado", "type": "main", "index": 0 }], [{ "node": "Log Outros Eventos", "type": "main", "index": 0 }]] }
+    },
+    "settings": { "executionOrder": "v1" },
+    "active": false
+  }
+]

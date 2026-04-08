@@ -30,7 +30,32 @@
       "Bash(git credential:*)",
       "Bash(printf \"protocol=https\\\\nhost=github.com\\\\n\\\\n\")",
       "Bash(gh auth:*)",
-      "Bash(tasklist)"
+      "Bash(tasklist)",
+      "mcp__playwright__browser_tabs",
+      "mcp__playwright__browser_press_key",
+      "mcp__playwright__browser_wait_for",
+      "mcp__playwright__browser_evaluate",
+      "Bash(git commit:*)",
+      "Bash(git reset:*)",
+      "Bash(git tag:*)",
+      "Bash(node:*)",
+      "mcp__playwright__browser_run_code",
+      "Bash(echo \"HEAD rodando em background PID: $!\")",
+      "Bash(disown)",
+      "Bash(echo \"HEAD rodando com PID $!\")",
+      "Bash(npx create-next-app@latest excalibur-app --typescript --tailwind --eslint --app --no-src-dir --import-alias \"@/*\" --use-npm)",
+      "Bash(npx create-next-app@latest excalibur-hq --typescript --tailwind --eslint --app --no-src-dir --import-alias \"@/*\" --use-npm)",
+      "Bash(npm install:*)",
+      "Bash(mkdir:*)",
+      "Bash(ls \"C:/Users/conta/Downloads/\"*backup* \"C:/Users/conta/Downloads/\"*waseller* \"C:/Users/conta/Downloads/\"*waSeller*)",
+      "Bash(grep -oP \"['\\\\\"]\\([A-Za-z0-9+/=]{16,32}\\)['\\\\\"]\" \"C:/Users/conta/AppData/Local/Google/Chrome/User Data/Default/Extensions/ajihoihfamedkfcknpgcelpbhdnadabg/7.4.3.30_0/content/assets/js/v_7_4_3_30_53befa88-12f2-496c-a84d-0f1f11019f4f4.js\")",
+      "Bash(grep -oP 'Se=\\\\{[^}]{0,500}\\\\}' \"C:/Users/conta/AppData/Local/Google/Chrome/User Data/Default/Extensions/ajihoihfamedkfcknpgcelpbhdnadabg/7.4.3.30_0/content/assets/js/v_7_4_3_30_53befa88-12f2-496c-a84d-0f1f11019f4f4.js\")",
+      "Bash(grep -oP ',Se=[^,;]{1,200}' \"C:/Users/conta/AppData/Local/Google/Chrome/User Data/Default/Extensions/ajihoihfamedkfcknpgcelpbhdnadabg/7.4.3.30_0/content/assets/js/v_7_4_3_30_53befa88-12f2-496c-a84d-0f1f11019f4f4.js\")",
+      "Bash(ls -la /c/Users/conta/Desktop/excalibur/excalibur-web/docs/nexus/*.png)",
+      "Bash(ls /c/Users/conta/Desktop/excalibur/excalibur-web/docs/nexus/*.png)",
+      "Bash(ls docs/nexus/*.png)",
+      "Bash(ls docs/nexus/*.md)",
+      "Read(//c/Users/conta/Desktop/excalibur/excalibur-app/**)"
     ]
   }
 }

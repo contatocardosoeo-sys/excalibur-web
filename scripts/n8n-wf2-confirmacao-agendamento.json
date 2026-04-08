@@ -1,0 +1,66 @@
+{
+  "name": "⚔️ 2 — Confirmação Agendamento D-1",
+  "nodes": [
+    {
+      "parameters": { "rule": { "interval": [{ "field": "cronExpression", "expression": "0 9 * * *" }] } },
+      "id": "a1b2c3d4-0001-0001-0001-000000000001",
+      "name": "Todo dia 9h",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [0, 0]
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "=https://hluhlsnodndpskrkbjuw.supabase.co/rest/v1/agendamentos?data=eq.{{ $now.plus(1, 'day').toFormat('yyyy-MM-dd') }}&status=eq.agendado&select=*",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            { "name": "apikey", "value": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImhsdWhsc25vZG5kcHNrcmtianV3Iiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc3NTM1MDg3MCwiZXhwIjoyMDkwOTI2ODcwfQ.3gbnB8elQR1f1FOn5hshpF5Vdn4ZEureW3QHQmrws_o" },
+            { "name": "Authorization", "value": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImhsdWhsc25vZG5kcHNrcmtianV3Iiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc3NTM1MDg3MCwiZXhwIjoyMDkwOTI2ODcwfQ.3gbnB8elQR1f1FOn5hshpF5Vdn4ZEureW3QHQmrws_o" }
+          ]
+        }
+      },
+      "id": "a1b2c3d4-0001-0001-0001-000000000002",
+      "name": "Buscar Agendamentos Amanhã",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [220, 0]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "conditions": [
+            { "leftValue": "={{ $json.length }}", "rightValue": 0, "operator": { "type": "number", "operation": "gt" } }
+          ],
+          "combinator": "and"
+        }
+      },
+      "id": "a1b2c3d4-0001-0001-0001-000000000003",
+      "name": "Tem Agendamentos?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [440, 0]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://excalibur-app.vercel.app/api/webhooks/n8n",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"tipo\": \"agendamento_confirmar\",\n  \"clinica_id\": \"{{ $json.clinica_id }}\",\n  \"agendamento_id\": \"{{ $json.id }}\",\n  \"dados\": {\n    \"paciente_nome\": \"{{ $json.paciente_nome }}\",\n    \"data\": \"{{ $json.data }}\",\n    \"hora\": \"{{ $json.hora }}\"\n  }\n}"
+      },
+      "id": "a1b2c3d4-0001-0001-0001-000000000004",
+      "name": "Enviar Confirmação",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [660, -100]
+    }
+  ],
+  "connections": {
+    "Todo dia 9h": { "main": [[{ "node": "Buscar Agendamentos Amanhã", "type": "main", "index": 0 }]] },
+    "Buscar Agendamentos Amanhã": { "main": [[{ "node": "Tem Agendamentos?", "type": "main", "index": 0 }]] },
+    "Tem Agendamentos?": { "main": [[{ "node": "Enviar Confirmação", "type": "main", "index": 0 }], []] }
+  },
+  "settings": { "executionOrder": "v1" }
+}

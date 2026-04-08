@@ -80,9 +80,22 @@ function fmtNum(v: number): string {
   return v.toLocaleString('pt-BR')
 }
 
+const EMPTY_METRICAS: Metricas = {
+  investimento: 0, leads: 0, leads_respondidos: 0, agendamentos: 0,
+  comparecimentos: 0, fechamentos: 0, faturamento: 0, cpl: 0,
+  taxa_agendamento: 0, taxa_comparecimento: 0, taxa_fechamento: 0,
+  ticket_medio: 0, cac: 0, roi: 0,
+}
+
+const EMPTY_DATA: DashData = {
+  metricas: EMPTY_METRICAS, versus: null, adocao: null,
+  jornada: null, alertas: [], historico: [],
+}
+
 export default function Dashboard() {
   const [data, setData] = useState<DashData | null>(null)
   const [loading, setLoading] = useState(true)
+  const [erro, setErro] = useState(false)
   const [clinicaId, setClinicaId] = useState(CLINICA_ID)
 
   useEffect(() => {
@@ -97,9 +110,12 @@ export default function Dashboard() {
 
   const load = useCallback(async () => {
     setLoading(true)
-    const res = await fetch(`/api/dashboard?clinica_id=${clinicaId}`)
-    const json = await res.json()
-    setData(json)
+    try {
+      const res = await fetch(`/api/dashboard?clinica_id=${clinicaId}`)
+      if (!res.ok) { setErro(true); setData(EMPTY_DATA); setLoading(false); return }
+      const json = await res.json()
+      if (json.error) { setErro(true); setData(EMPTY_DATA); } else { setErro(false); setData(json) }
+    } catch { setErro(true); setData(EMPTY_DATA) }
     setLoading(false)
   }, [clinicaId])
 
@@ -109,7 +125,15 @@ export default function Dashboard() {
     return () => clearInterval(interval)
   }, [load])
 
-  if (loading || !data) {
+  // Timeout de 5s — nunca fica em loading infinito
+  useEffect(() => {
+    const timeout = setTimeout(() => {
+      if (loading) { setData(prev => prev ?? EMPTY_DATA); setLoading(false); setErro(true) }
+    }, 5000)
+    return () => clearTimeout(timeout)
+  }, [loading])
+
+  if (loading && !data) {
     return (
       <div style={{ minHeight: '100vh', background: '#030712', display: 'flex' }}>
         <Sidebar />
@@ -123,7 +147,9 @@ export default function Dashboard() {
     )
   }
 
-  const { metricas, versus, adocao, alertas, historico } = data
+  const safeData = data ?? EMPTY_DATA
+
+  const { metricas, versus, adocao, alertas, historico } = safeData
   const score = adocao?.score ?? 0
   const scoreColor = score >= 80 ? '#22c55e' : score >= 60 ? '#f59e0b' : '#ef4444'
   const scoreLabel = score >= 80 ? 'Saudavel' : score >= 60 ? 'Atencao' : 'Risco'
@@ -148,6 +174,14 @@ export default function Dashboard() {
             <div style={{ fontSize: 10, color: '#6b7280', marginTop: 2 }}>Health Score</div>
           </div>
         </div>
+
+        {/* Aviso sem dados */}
+        {erro && (
+          <div style={{ background: '#f59e0b15', border: '1px solid #f59e0b40', borderRadius: 12, padding: '12px 18px', marginBottom: 16, display: 'flex', alignItems: 'center', gap: 10 }}>
+            <span style={{ fontSize: 18 }}>⚠️</span>
+            <span style={{ color: '#fbbf24', fontSize: 13 }}>Nenhum dado ainda. Preencha o funil diario para ver suas metricas aqui.</span>
+          </div>
+        )}
 
         {/* Alertas */}
         {alertas.length > 0 && (

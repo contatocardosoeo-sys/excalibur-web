@@ -1,0 +1,66 @@
+{
+  "name": "⚔️ 4 — Proposta Expirada (7 dias)",
+  "nodes": [
+    {
+      "parameters": { "rule": { "interval": [{ "field": "cronExpression", "expression": "0 8 * * *" }] } },
+      "id": "c1b2c3d4-0003-0003-0003-000000000001",
+      "name": "Todo dia 8h",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [0, 0]
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "=https://hluhlsnodndpskrkbjuw.supabase.co/rest/v1/propostas?status=eq.pendente&created_at=lt.{{ $now.minus(7, 'days').toISO() }}&select=*",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            { "name": "apikey", "value": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImhsdWhsc25vZG5kcHNrcmtianV3Iiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc3NTM1MDg3MCwiZXhwIjoyMDkwOTI2ODcwfQ.3gbnB8elQR1f1FOn5hshpF5Vdn4ZEureW3QHQmrws_o" },
+            { "name": "Authorization", "value": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImhsdWhsc25vZG5kcHNrcmtianV3Iiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc3NTM1MDg3MCwiZXhwIjoyMDkwOTI2ODcwfQ.3gbnB8elQR1f1FOn5hshpF5Vdn4ZEureW3QHQmrws_o" }
+          ]
+        }
+      },
+      "id": "c1b2c3d4-0003-0003-0003-000000000002",
+      "name": "Propostas Pendentes +7d",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [220, 0]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "conditions": [
+            { "leftValue": "={{ $json.length }}", "rightValue": 0, "operator": { "type": "number", "operation": "gt" } }
+          ],
+          "combinator": "and"
+        }
+      },
+      "id": "c1b2c3d4-0003-0003-0003-000000000003",
+      "name": "Tem Propostas?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [440, 0]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://excalibur-app.vercel.app/api/webhooks/n8n",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"tipo\": \"proposta_expirada\",\n  \"clinica_id\": \"{{ $json.clinica_id }}\",\n  \"proposta_id\": \"{{ $json.id }}\",\n  \"dados\": {\n    \"paciente_nome\": \"{{ $json.paciente_nome }}\",\n    \"valor_total\": {{ $json.valor_total || 0 }}\n  }\n}"
+      },
+      "id": "c1b2c3d4-0003-0003-0003-000000000004",
+      "name": "Marcar Expirada",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [660, -100]
+    }
+  ],
+  "connections": {
+    "Todo dia 8h": { "main": [[{ "node": "Propostas Pendentes +7d", "type": "main", "index": 0 }]] },
+    "Propostas Pendentes +7d": { "main": [[{ "node": "Tem Propostas?", "type": "main", "index": 0 }]] },
+    "Tem Propostas?": { "main": [[{ "node": "Marcar Expirada", "type": "main", "index": 0 }], []] }
+  },
+  "settings": { "executionOrder": "v1" }
+}

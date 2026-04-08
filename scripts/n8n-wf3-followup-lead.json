@@ -1,0 +1,66 @@
+{
+  "name": "⚔️ 3 — Follow-up Lead D+1",
+  "nodes": [
+    {
+      "parameters": { "rule": { "interval": [{ "field": "cronExpression", "expression": "0 10 * * *" }] } },
+      "id": "b1b2c3d4-0002-0002-0002-000000000001",
+      "name": "Todo dia 10h",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [0, 0]
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "=https://hluhlsnodndpskrkbjuw.supabase.co/rest/v1/leads?etapa=eq.Recebido&created_at=lt.{{ $now.minus(1, 'day').toISO() }}&select=*",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            { "name": "apikey", "value": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImhsdWhsc25vZG5kcHNrcmtianV3Iiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc3NTM1MDg3MCwiZXhwIjoyMDkwOTI2ODcwfQ.3gbnB8elQR1f1FOn5hshpF5Vdn4ZEureW3QHQmrws_o" },
+            { "name": "Authorization", "value": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImhsdWhsc25vZG5kcHNrcmtianV3Iiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc3NTM1MDg3MCwiZXhwIjoyMDkwOTI2ODcwfQ.3gbnB8elQR1f1FOn5hshpF5Vdn4ZEureW3QHQmrws_o" }
+          ]
+        }
+      },
+      "id": "b1b2c3d4-0002-0002-0002-000000000002",
+      "name": "Leads Sem Contato D+1",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [220, 0]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "conditions": [
+            { "leftValue": "={{ $json.length }}", "rightValue": 0, "operator": { "type": "number", "operation": "gt" } }
+          ],
+          "combinator": "and"
+        }
+      },
+      "id": "b1b2c3d4-0002-0002-0002-000000000003",
+      "name": "Tem Leads?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [440, 0]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://excalibur-app.vercel.app/api/webhooks/n8n",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"tipo\": \"lead_novo\",\n  \"clinica_id\": \"{{ $json.clinica_id }}\",\n  \"lead_id\": \"{{ $json.id }}\",\n  \"dados\": {\n    \"nome\": \"{{ $json.nome }}\",\n    \"origem\": \"{{ $json.origem }}\"\n  }\n}"
+      },
+      "id": "b1b2c3d4-0002-0002-0002-000000000004",
+      "name": "Disparar Follow-up",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [660, -100]
+    }
+  ],
+  "connections": {
+    "Todo dia 10h": { "main": [[{ "node": "Leads Sem Contato D+1", "type": "main", "index": 0 }]] },
+    "Leads Sem Contato D+1": { "main": [[{ "node": "Tem Leads?", "type": "main", "index": 0 }]] },
+    "Tem Leads?": { "main": [[{ "node": "Disparar Follow-up", "type": "main", "index": 0 }], []] }
+  },
+  "settings": { "executionOrder": "v1" }
+}
